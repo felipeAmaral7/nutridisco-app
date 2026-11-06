@@ -63,8 +63,15 @@ class AvaliacaoRapidaViewModel @Inject constructor(
         val peso = state.peso.toDoubleOrNull()
         val estatura = state.estatura.toDoubleOrNull()
 
-        if (idade == null || idade < 0 || idade > 60) {
-            _uiState.value = state.copy(erro = "Informe uma idade válida entre 0 e 60 meses")
+        if (idade == null || idade < 0) {
+            _uiState.value = state.copy(erro = "Informe uma idade válida em meses.")
+            return
+        }
+        if (idade >= 60) {
+            _uiState.value = state.copy(
+                resultado = null,
+                erro = "Idade não permitida ($idade meses). O NutriDisco atende apenas crianças de 0 a 59 meses completos (menores de 5 anos)."
+            )
             return
         }
         if (peso == null || peso <= 0.0 || peso > 50.0) {
@@ -97,7 +104,7 @@ class AvaliacaoRapidaViewModel @Inject constructor(
         val peso = state.peso.toDoubleOrNull()
         val estatura = state.estatura.toDoubleOrNull()
 
-        if (idade != null && idade in 0..60 && peso != null && peso > 0 && estatura != null && estatura > 0) {
+        if (idade != null && idade in 0..59 && peso != null && peso > 0 && estatura != null && estatura > 0) {
             calcular()
         }
     }

@@ -204,11 +204,35 @@ fun NovaAvaliacaoScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                if (idadeMeses >= 60) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "⚠️ Atenção: Criança com 5 anos ou mais (≥ 60 meses)",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "O disco de avaliação do NutriDisco atende estritamente a faixa de 0 a 59 meses completos. Crianças com 60 meses ou mais devem ser avaliadas pelos protocolos de idade escolar.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Button(
                     onClick = { viewModel.salvarAvaliacao(onSalvo) },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = !state.salvando,
+                    enabled = !state.salvando && idadeMeses < 60,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)

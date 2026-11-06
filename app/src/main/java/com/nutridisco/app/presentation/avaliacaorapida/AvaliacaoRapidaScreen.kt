@@ -120,7 +120,7 @@ fun AvaliacaoRapidaScreen(
                 value = state.idadeMeses,
                 onValueChange = viewModel::onIdadeChange,
                 label = { Text("Idade (meses completos) *") },
-                placeholder = { Text("Ex: 18 (0 a 60 meses)") },
+                placeholder = { Text("Ex: 18 (0 a 59 meses)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true

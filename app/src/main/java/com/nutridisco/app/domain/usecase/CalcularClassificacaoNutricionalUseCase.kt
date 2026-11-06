@@ -7,6 +7,15 @@ import com.nutridisco.app.domain.model.ResultadoClassificacao
 import com.nutridisco.app.domain.repository.ReferenciaAntropometricaRepository
 import javax.inject.Inject
 
+/**
+ * Exceção lançada quando a idade informada ou calculada for igual ou superior a 60 meses (5 anos).
+ * O padrão infantil do NutriDisco atende estritamente crianças de 0 a 59 meses completos.
+ */
+class IdadeLimiteExcedidaException(val idadeMeses: Int) : IllegalArgumentException(
+    "A idade informada ($idadeMeses meses) é igual ou superior a 60 meses. " +
+    "O NutriDisco é restrito ao acompanhamento de crianças de 0 a 59 meses completos (menores de 5 anos)."
+)
+
 class CalcularClassificacaoNutricionalUseCase @Inject constructor(
     private val referenciaRepository: ReferenciaAntropometricaRepository
 ) {
@@ -17,6 +26,14 @@ class CalcularClassificacaoNutricionalUseCase @Inject constructor(
         peso: Double,
         estatura: Double
     ): ResultadoClassificacao {
+        // Validação estrita de idade limite (>= 60 meses bloqueia)
+        if (idadeMeses >= IDADE_LIMITE_MESES) {
+            throw IdadeLimiteExcedidaException(idadeMeses)
+        }
+        if (idadeMeses < 0) {
+            throw IllegalArgumentException("A idade não pode ser negativa ($idadeMeses meses).")
+        }
+
         val sexoNormalizado = sexo.trim().uppercase()
 
         val refEstatura = referenciaRepository.buscarReferencia(
@@ -56,6 +73,7 @@ class CalcularClassificacaoNutricionalUseCase @Inject constructor(
     }
 
     companion object {
+        const val IDADE_LIMITE_MESES = 60
         const val PARAM_ESTATURA = "ESTATURA"
         const val PARAM_PESO = "PESO"
 

@@ -73,15 +73,27 @@ class NovaAvaliacaoViewModel @Inject constructor(
         val estatura = _uiState.value.estatura.toDoubleOrNull()
         val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(c.dataNascimento)
 
+        if (idadeMeses >= 60) {
+            _uiState.value = _uiState.value.copy(
+                resultado = null,
+                erro = "Criança com $idadeMeses meses (5 anos ou mais). O NutriDisco é restrito a crianças de 0 a 59 meses."
+            )
+            return
+        }
+
         if (peso != null && peso > 0 && estatura != null && estatura > 0) {
             viewModelScope.launch {
-                val res = calcularClassificacaoUseCase(
-                    idadeMeses = idadeMeses,
-                    sexo = c.sexo,
-                    peso = peso,
-                    estatura = estatura
-                )
-                _uiState.value = _uiState.value.copy(resultado = res, erro = null)
+                try {
+                    val res = calcularClassificacaoUseCase(
+                        idadeMeses = idadeMeses,
+                        sexo = c.sexo,
+                        peso = peso,
+                        estatura = estatura
+                    )
+                    _uiState.value = _uiState.value.copy(resultado = res, erro = null)
+                } catch (e: Exception) {
+                    _uiState.value = _uiState.value.copy(resultado = null, erro = e.message)
+                }
             }
         }
     }
@@ -92,6 +104,13 @@ class NovaAvaliacaoViewModel @Inject constructor(
         val peso = state.peso.toDoubleOrNull()
         val estatura = state.estatura.toDoubleOrNull()
         val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(c.dataNascimento)
+
+        if (idadeMeses >= 60) {
+            _uiState.value = state.copy(
+                erro = "Operação bloqueada: a criança atingiu $idadeMeses meses (idade igual ou superior a 60 meses)."
+            )
+            return
+        }
 
         if (peso == null || peso <= 0.0 || peso > 50.0) {
             _uiState.value = state.copy(erro = "Informe um peso válido")
@@ -105,33 +124,37 @@ class NovaAvaliacaoViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = state.copy(salvando = true, erro = null)
 
-            val resultado = calcularClassificacaoUseCase(
-                idadeMeses = idadeMeses,
-                sexo = c.sexo,
-                peso = peso,
-                estatura = estatura
-            )
-
-            val config = configuracaoRepository.getConfiguracao()
-
-            avaliacaoRepository.salvarAvaliacao(
-                AvaliacaoEntity(
-                    criancaId = c.id,
-                    comunidadeAtendimentoId = c.comunidadeId,
-                    dataAtendimento = System.currentTimeMillis(),
-                    idadeMesesMomento = idadeMeses,
+            try {
+                val resultado = calcularClassificacaoUseCase(
+                    idadeMeses = idadeMeses,
+                    sexo = c.sexo,
                     peso = peso,
-                    estatura = estatura,
-                    classificacaoEstatura = resultado.classificacaoEstatura.descricao,
-                    classificacaoPeso = resultado.classificacaoPeso.descricao,
-                    observacoes = state.observacoes.trim().ifEmpty { null },
-                    nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
-                    registroCoren = config?.registroCoren ?: "Não informado"
+                    estatura = estatura
                 )
-            )
 
-            _uiState.value = state.copy(salvando = false)
-            onSucesso()
+                val config = configuracaoRepository.getConfiguracao()
+
+                avaliacaoRepository.salvarAvaliacao(
+                    AvaliacaoEntity(
+                        criancaId = c.id,
+                        comunidadeAtendimentoId = c.comunidadeId,
+                        dataAtendimento = System.currentTimeMillis(),
+                        idadeMesesMomento = idadeMeses,
+                        peso = peso,
+                        estatura = estatura,
+                        classificacaoEstatura = resultado.classificacaoEstatura.descricao,
+                        classificacaoPeso = resultado.classificacaoPeso.descricao,
+                        observacoes = state.observacoes.trim().ifEmpty { null },
+                        nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
+                        registroCoren = config?.registroCoren ?: "Não informado"
+                    )
+                )
+
+                _uiState.value = state.copy(salvando = false)
+                onSucesso()
+            } catch (e: Exception) {
+                _uiState.value = state.copy(salvando = false, erro = e.message)
+            }
         }
     }
 }

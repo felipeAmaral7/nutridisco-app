@@ -185,4 +185,59 @@ class CalcularClassificacaoNutricionalUseCaseTest {
         assertEquals(ClassificacaoEstatura.ESTATURA_ADEQUADA, resultado.classificacaoEstatura)
         assertEquals(ClassificacaoPeso.PESO_ELEVADO, resultado.classificacaoPeso)
     }
+
+    @Test(expected = IdadeLimiteExcedidaException::class)
+    fun `invoke deve bloquear e lancar IdadeLimiteExcedidaException quando idade for exatamente 60 meses`() = runBlocking {
+        useCase(
+            idadeMeses = 60,
+            sexo = "M",
+            peso = 18.0,
+            estatura = 110.0
+        )
+        Unit
+    }
+
+    @Test(expected = IdadeLimiteExcedidaException::class)
+    fun `invoke deve bloquear e lancar IdadeLimiteExcedidaException quando idade for superior a 60 meses`() = runBlocking {
+        useCase(
+            idadeMeses = 72,
+            sexo = "F",
+            peso = 22.0,
+            estatura = 120.0
+        )
+        Unit
+    }
+
+    @Test
+    fun `invoke deve permitir calculo com sucesso para limite superior permitido de 59 meses`() = runBlocking {
+        val resultado = useCase(
+            idadeMeses = 59,
+            sexo = "F",
+            peso = 14.0,
+            estatura = 95.0
+        )
+        assertEquals(59, resultado.idadeMeses)
+    }
+
+    @Test
+    fun `invoke deve permitir calculo com sucesso para recem-nascido de 0 meses`() = runBlocking {
+        val resultado = useCase(
+            idadeMeses = 0,
+            sexo = "M",
+            peso = 3.5,
+            estatura = 50.0
+        )
+        assertEquals(0, resultado.idadeMeses)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `invoke deve bloquear e lancar IllegalArgumentException quando idade for negativa`() = runBlocking {
+        useCase(
+            idadeMeses = -1,
+            sexo = "M",
+            peso = 3.5,
+            estatura = 50.0
+        )
+        Unit
+    }
 }

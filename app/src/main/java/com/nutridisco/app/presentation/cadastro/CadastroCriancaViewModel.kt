@@ -161,6 +161,14 @@ class CadastroCriancaViewModel @Inject constructor(
             return
         }
 
+        val idadeCalculadaMeses = IdadeUtils.calcularIdadeEmMesesCompletos(dataNascTimestamp)
+        if (dadosAvaliacaoPendente != null && idadeCalculadaMeses >= 60) {
+            _uiState.value = state.copy(
+                erro = "A data informada corresponde a uma idade de $idadeCalculadaMeses meses (≥ 60 meses). O NutriDisco avalia exclusivamente crianças de 0 a 59 meses."
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = state.copy(salvando = true, erro = null)
 

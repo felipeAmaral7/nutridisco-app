@@ -37,6 +37,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
+            .addCallback(com.nutridisco.app.data.local.seed.AppDatabaseCallback(context))
             .fallbackToDestructiveMigration()
             .build()
     }
