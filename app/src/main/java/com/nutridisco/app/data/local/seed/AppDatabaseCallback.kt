@@ -22,7 +22,7 @@ class AppDatabaseCallback(
 
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
-        // Garante que se o banco já existia antes do seed, os dados sejam injetados
+        // Garante que se o banco já existia antes do seed ou após migração, os dados sejam injetados
         executarSeedSeVazio(db)
     }
 
@@ -46,22 +46,31 @@ class AppDatabaseCallback(
             val statements = lerStatementsDoAsset(context, ASSET_FILE)
             Log.d(TAG, "Total de statements lidos do asset: ${statements.size}")
 
-            db.beginTransaction()
+            val jaEmTransacao = db.inTransaction()
+            if (!jaEmTransacao) {
+                db.beginTransaction()
+            }
+
             try {
                 for (statement in statements) {
                     val trimmed = statement.trim()
-                    // Executa apenas os INSERTs, pois o Room já criou o schema DDL
+                    // Executa apenas os INSERTs, pois o Room já cria o schema DDL
                     if (trimmed.startsWith("INSERT", ignoreCase = true)) {
                         db.execSQL(trimmed)
                     }
                 }
-                db.setTransactionSuccessful()
+                if (!jaEmTransacao) {
+                    db.setTransactionSuccessful()
+                }
                 Log.i(TAG, "Seed Data executado com sucesso no NutriDisco!")
             } finally {
-                db.endTransaction()
+                if (!jaEmTransacao) {
+                    db.endTransaction()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Falha crítica ao executar o Seed Data: ${e.message}", e)
+            throw e
         }
     }
 

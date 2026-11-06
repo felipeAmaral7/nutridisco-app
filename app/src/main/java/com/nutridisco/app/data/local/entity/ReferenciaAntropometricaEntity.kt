@@ -38,5 +38,5 @@ data class ReferenciaAntropometricaEntity(
     val escoreMenos2: Double,
 
     @ColumnInfo(name = "escore_mais_2")
-    val escoreMais2: Double
+    val escoreMais2: Double? = null
 )

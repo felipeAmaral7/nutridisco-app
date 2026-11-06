@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -24,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaScreen
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaViewModel
+import com.nutridisco.app.presentation.avaliacoessalvas.AvaliacoesSalvasViewModel
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaScreen
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaViewModel
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoScreen
@@ -37,6 +39,8 @@ import com.nutridisco.app.presentation.novaavaliacao.NovaAvaliacaoScreen
 import com.nutridisco.app.presentation.novaavaliacao.NovaAvaliacaoViewModel
 import com.nutridisco.app.presentation.perfil.PerfilCriancaScreen
 import com.nutridisco.app.presentation.perfil.PerfilCriancaViewModel
+import com.nutridisco.app.presentation.ui.AberturaScreen
+import com.nutridisco.app.presentation.ui.AvaliacoesSalvasScreen
 
 @Composable
 fun MainScreen() {
@@ -46,6 +50,7 @@ fun MainScreen() {
 
     // Abas principais que exibem a barra inferior
     val bottomNavItems = listOf(
+        Screen.AvaliacoesSalvas to ("Início" to Icons.Default.Home),
         Screen.AvaliacaoRapida to ("Avaliação" to Icons.Default.Calculate),
         Screen.Criancas to ("Crianças" to Icons.Default.ChildCare),
         Screen.Exportacao to ("Exportar" to Icons.Default.FileDownload),
@@ -83,9 +88,32 @@ fun MainScreen() {
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = Screen.AvaliacaoRapida.route,
+            startDestination = Screen.Abertura.route,
             modifier = Modifier.padding(paddingValues)
         ) {
+            composable(Screen.Abertura.route) {
+                AberturaScreen(
+                    onIniciarAvaliacaoClick = {
+                        navController.navigate(Screen.AvaliacoesSalvas.route) {
+                            popUpTo(Screen.Abertura.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(Screen.AvaliacoesSalvas.route) {
+                val viewModel: AvaliacoesSalvasViewModel = hiltViewModel()
+                AvaliacoesSalvasScreen(
+                    viewModel = viewModel,
+                    onIniciarNovaAvaliacaoClick = {
+                        navController.navigate(Screen.AvaliacaoRapida.route)
+                    },
+                    onCriancaClick = { criancaId ->
+                        navController.navigate(Screen.PerfilCrianca.createRoute(criancaId))
+                    }
+                )
+            }
+
             composable(Screen.AvaliacaoRapida.route) {
                 val viewModel: AvaliacaoRapidaViewModel = hiltViewModel()
                 AvaliacaoRapidaScreen(

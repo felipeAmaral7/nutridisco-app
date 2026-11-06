@@ -105,11 +105,12 @@ class CalcularClassificacaoNutricionalUseCase @Inject constructor(
             peso: Double,
             ref: ReferenciaAntropometricaEntity
         ): ClassificacaoPeso {
+            val escoreMais2 = ref.escoreMais2
             return when {
                 peso < ref.escoreMenos3 -> ClassificacaoPeso.MUITO_BAIXO_PESO
                 peso < ref.escoreMenos2 -> ClassificacaoPeso.BAIXO_PESO
-                peso <= ref.escoreMais2 -> ClassificacaoPeso.PESO_ADEQUADO
-                else -> ClassificacaoPeso.PESO_ELEVADO
+                escoreMais2 != null && peso > escoreMais2 -> ClassificacaoPeso.PESO_ELEVADO
+                else -> ClassificacaoPeso.PESO_ADEQUADO
             }
         }
     }
