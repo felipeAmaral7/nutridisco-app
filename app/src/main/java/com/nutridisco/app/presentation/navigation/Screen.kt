@@ -3,6 +3,7 @@ package com.nutridisco.app.presentation.navigation
 sealed class Screen(val route: String) {
     object Abertura : Screen("abertura")
     object AvaliacoesSalvas : Screen("avaliacoes_salvas")
+    object SelecaoSexo : Screen("selecao_sexo")
     object Configuracao : Screen("configuracao")
     object AvaliacaoRapida : Screen("avaliacao_rapida")
     object Criancas : Screen("criancas")

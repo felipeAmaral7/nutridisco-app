@@ -13,6 +13,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,6 +42,7 @@ import com.nutridisco.app.presentation.perfil.PerfilCriancaScreen
 import com.nutridisco.app.presentation.perfil.PerfilCriancaViewModel
 import com.nutridisco.app.presentation.ui.AberturaScreen
 import com.nutridisco.app.presentation.ui.AvaliacoesSalvasScreen
+import com.nutridisco.app.presentation.ui.SelecaoSexoScreen
 
 @Composable
 fun MainScreen() {
@@ -51,13 +53,14 @@ fun MainScreen() {
     // Abas principais que exibem a barra inferior
     val bottomNavItems = listOf(
         Screen.AvaliacoesSalvas to ("Início" to Icons.Default.Home),
-        Screen.AvaliacaoRapida to ("Avaliação" to Icons.Default.Calculate),
+        Screen.SelecaoSexo to ("Avaliação" to Icons.Default.Calculate),
         Screen.Criancas to ("Crianças" to Icons.Default.ChildCare),
         Screen.Exportacao to ("Exportar" to Icons.Default.FileDownload),
         Screen.Configuracao to ("Ajustes" to Icons.Default.Settings)
     )
 
-    val showBottomBar = currentRoute in bottomNavItems.map { it.first.route }
+    val showBottomBar = currentRoute in bottomNavItems.map { it.first.route } ||
+        currentRoute?.startsWith(Screen.AvaliacaoRapida.route) == true
 
     Scaffold(
         bottomBar = {
@@ -65,10 +68,13 @@ fun MainScreen() {
                 NavigationBar {
                     bottomNavItems.forEach { (screen, info) ->
                         val (label, icon) = info
+                        val isSelected = currentRoute == screen.route ||
+                            (screen == Screen.SelecaoSexo && currentRoute?.startsWith(Screen.AvaliacaoRapida.route) == true)
+
                         NavigationBarItem(
                             icon = { Icon(icon, contentDescription = label) },
                             label = { Text(label) },
-                            selected = currentRoute == screen.route,
+                            selected = isSelected,
                             onClick = {
                                 if (currentRoute != screen.route) {
                                     navController.navigate(screen.route) {
@@ -106,7 +112,7 @@ fun MainScreen() {
                 AvaliacoesSalvasScreen(
                     viewModel = viewModel,
                     onIniciarNovaAvaliacaoClick = {
-                        navController.navigate(Screen.AvaliacaoRapida.route)
+                        navController.navigate(Screen.SelecaoSexo.route)
                     },
                     onCriancaClick = { criancaId ->
                         navController.navigate(Screen.PerfilCrianca.createRoute(criancaId))
@@ -114,12 +120,30 @@ fun MainScreen() {
                 )
             }
 
-            composable(Screen.AvaliacaoRapida.route) {
+            composable(Screen.SelecaoSexo.route) {
+                SelecaoSexoScreen(
+                    onVoltarClick = { navController.popBackStack() },
+                    onProximoClick = { sexoOpcao ->
+                        navController.navigate("${Screen.AvaliacaoRapida.route}?sexo=${sexoOpcao.valorDb}")
+                    }
+                )
+            }
+
+            composable(
+                route = "${Screen.AvaliacaoRapida.route}?sexo={sexo}",
+                arguments = listOf(
+                    navArgument("sexo") { type = NavType.StringType; defaultValue = "M" }
+                )
+            ) { backStackEntry ->
                 val viewModel: AvaliacaoRapidaViewModel = hiltViewModel()
+                val sexo = backStackEntry.arguments?.getString("sexo") ?: "M"
+                LaunchedEffect(sexo) {
+                    viewModel.onSexoChange(sexo)
+                }
                 AvaliacaoRapidaScreen(
                     viewModel = viewModel,
-                    onSalvarRegistro = { sexo, idadeMeses, peso, estatura ->
-                        navController.navigate("${Screen.CadastroCrianca.route}?sexo=$sexo&idade=$idadeMeses&peso=$peso&estatura=$estatura")
+                    onSalvarRegistro = { s, idadeMeses, peso, estatura ->
+                        navController.navigate("${Screen.CadastroCrianca.route}?sexo=$s&idade=$idadeMeses&peso=$peso&estatura=$estatura")
                     }
                 )
             }
