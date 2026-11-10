@@ -42,6 +42,8 @@ import com.nutridisco.app.presentation.novaavaliacao.NovaAvaliacaoViewModel
 import com.nutridisco.app.presentation.perfil.PerfilCriancaScreen
 import com.nutridisco.app.presentation.perfil.PerfilCriancaViewModel
 import com.nutridisco.app.presentation.resultado.ResultadoScreen
+import com.nutridisco.app.presentation.salvarregistro.AvaliacaoPendente
+import com.nutridisco.app.presentation.salvarregistro.SalvarRegistroScreen
 import com.nutridisco.app.presentation.ui.AberturaScreen
 import com.nutridisco.app.presentation.ui.AvaliacoesSalvasScreen
 import com.nutridisco.app.presentation.ui.SelecaoSexoScreen
@@ -167,8 +169,7 @@ fun MainScreen() {
                     },
                     onSalvarRegistro = { res, dataNascimento ->
                         navController.navigate(
-                            "${Screen.CadastroCrianca.route}?sexo=${res.sexo}&dataNascimento=$dataNascimento" +
-                                "&peso=${res.peso}&estatura=${res.estatura}"
+                            Screen.SalvarRegistro.createRoute(res.sexo, dataNascimento, res.peso, res.estatura)
                         )
                     }
                 )
@@ -187,35 +188,52 @@ fun MainScreen() {
                 )
             }
 
-            composable(
-                route = "${Screen.CadastroCrianca.route}?sexo={sexo}&dataNascimento={dataNascimento}&peso={peso}&estatura={estatura}",
-                arguments = listOf(
-                    navArgument("sexo") { type = NavType.StringType; defaultValue = "M" },
-                    navArgument("dataNascimento") { type = NavType.LongType; defaultValue = -1L },
-                    navArgument("peso") { type = NavType.FloatType; defaultValue = -1f },
-                    navArgument("estatura") { type = NavType.FloatType; defaultValue = -1f }
-                )
-            ) { backStackEntry ->
+            composable(Screen.CadastroCrianca.route) {
                 val viewModel: CadastroCriancaViewModel = hiltViewModel()
-                val sexo = backStackEntry.arguments?.getString("sexo") ?: "M"
-                val dataNascimento = backStackEntry.arguments?.getLong("dataNascimento") ?: -1L
-                val peso = backStackEntry.arguments?.getFloat("peso")?.toDouble() ?: -1.0
-                val estatura = backStackEntry.arguments?.getFloat("estatura")?.toDouble() ?: -1.0
-
-                val dadosPendente = if (peso > 0 && estatura > 0) Pair(peso, estatura) else null
-
-                // Vindo da Avaliação Rápida: sexo e data de nascimento já foram informados e ficam travados.
-                LaunchedEffect(sexo, dataNascimento) {
-                    if (dataNascimento > 0) viewModel.preencherDadosDaAvaliacao(sexo, dataNascimento)
-                }
-
                 CadastroCriancaScreen(
                     viewModel = viewModel,
-                    dadosAvaliacaoPendente = dadosPendente,
                     onVoltar = { navController.popBackStack() },
                     onSalvoComSucesso = { criancaId ->
                         navController.navigate(Screen.PerfilCrianca.createRoute(criancaId)) {
                             popUpTo(Screen.Criancas.route)
+                        }
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.SalvarRegistro.ROTA,
+                arguments = listOf(
+                    navArgument("sexo") { type = NavType.StringType },
+                    navArgument("dataNascimento") { type = NavType.LongType },
+                    // String (e não Float) para não perder precisão de peso/estatura na conversão.
+                    navArgument("peso") { type = NavType.StringType },
+                    navArgument("estatura") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val viewModel: CadastroCriancaViewModel = hiltViewModel()
+                val args = backStackEntry.arguments
+                val sexo = args?.getString("sexo") ?: "M"
+                val dataNascimento = args?.getLong("dataNascimento") ?: 0L
+                val avaliacao = AvaliacaoPendente(
+                    peso = args?.getString("peso")?.toDoubleOrNull() ?: 0.0,
+                    estatura = args?.getString("estatura")?.toDoubleOrNull() ?: 0.0
+                )
+
+                // Sexo e data de nascimento já foram informados na Avaliação Rápida.
+                LaunchedEffect(sexo, dataNascimento) {
+                    viewModel.preencherDadosDaAvaliacao(sexo, dataNascimento)
+                }
+
+                SalvarRegistroScreen(
+                    viewModel = viewModel,
+                    avaliacao = avaliacao,
+                    onVoltar = { navController.popBackStack() },
+                    onSalvoComSucesso = { criancaId ->
+                        // Remove o fluxo da avaliação da pilha: voltar do perfil leva ao Início,
+                        // e não de novo ao formulário (o que permitiria salvar em duplicidade).
+                        navController.navigate(Screen.PerfilCrianca.createRoute(criancaId)) {
+                            popUpTo(Screen.AvaliacoesSalvas.route)
                         }
                     }
                 )

@@ -35,6 +35,10 @@ data class CadastroCriancaUiState(
     val numeroCns: String = "",
     val poloBaseId: Long? = null,
     val comunidadeNome: String = "",
+    /** Observações da avaliação (só no fluxo Salvar Registro, vindo da Avaliação Rápida). */
+    val observacoes: String = "",
+    /** true quando não há Polo Base padrão em Ajustes; o Salvar Registro depende dele. */
+    val poloBasePadraoAusente: Boolean = false,
     /** true quando sexo e data de nascimento vieram da Avaliação Rápida e não podem ser alterados aqui. */
     val dadosDaAvaliacao: Boolean = false,
     val salvando: Boolean = false,
@@ -70,10 +74,11 @@ class CadastroCriancaViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            configuracaoRepository.getConfiguracao()?.let { config ->
-                if (_uiState.value.poloBaseId == null) {
-                    _uiState.value = _uiState.value.copy(poloBaseId = config.poloBaseIdPadrao)
-                }
+            val poloPadrao = configuracaoRepository.getConfiguracao()?.poloBaseIdPadrao
+            if (poloPadrao == null) {
+                _uiState.value = _uiState.value.copy(poloBasePadraoAusente = true)
+            } else if (_uiState.value.poloBaseId == null) {
+                _uiState.value = _uiState.value.copy(poloBaseId = poloPadrao)
             }
         }
     }
@@ -119,6 +124,10 @@ class CadastroCriancaViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(poloBaseId = poloId, erro = null)
     }
 
+    fun onObservacoesChange(observacoes: String) {
+        _uiState.value = _uiState.value.copy(observacoes = observacoes.take(OBSERVACOES_MAX), erro = null)
+    }
+
     fun onComunidadeNomeChange(comunidade: String) {
         _uiState.value = _uiState.value.copy(comunidadeNome = comunidade, erro = null)
     }
@@ -138,7 +147,8 @@ class CadastroCriancaViewModel @Inject constructor(
             return
         }
         if (state.poloBaseId == null) {
-            _uiState.value = state.copy(erro = "Selecione o Polo Base")
+            val erro = if (state.dadosDaAvaliacao) ERRO_SEM_POLO_PADRAO else "Selecione o Polo Base"
+            _uiState.value = state.copy(erro = erro)
             return
         }
         if (state.comunidadeNome.isBlank()) {
@@ -249,7 +259,7 @@ class CadastroCriancaViewModel @Inject constructor(
                     estatura = resultado.estatura,
                     classificacaoEstatura = resultado.classificacaoEstatura,
                     classificacaoPeso = resultado.classificacaoPeso,
-                    observacoes = "Criada a partir da Avaliação Rápida",
+                    observacoes = state.observacoes.trim().ifEmpty { null },
                     nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
                     registroCoren = config?.registroCoren ?: "Não informado"
                 )
@@ -260,8 +270,11 @@ class CadastroCriancaViewModel @Inject constructor(
         onSucesso(criancaId)
     }
 
-    private companion object {
+    companion object {
         const val CNS_TAMANHO = 15
+        const val OBSERVACOES_MAX = 500
+        const val ERRO_SEM_POLO_PADRAO =
+            "Defina o Polo Base padrão em Ajustes para salvar o registro."
         const val ERRO_AO_SALVAR = "Não foi possível salvar o cadastro. Tente novamente."
     }
 }

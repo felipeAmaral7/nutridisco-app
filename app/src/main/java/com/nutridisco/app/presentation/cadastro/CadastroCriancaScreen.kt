@@ -49,7 +49,6 @@ import com.nutridisco.app.presentation.theme.StatusRed
 @Composable
 fun CadastroCriancaScreen(
     viewModel: CadastroCriancaViewModel,
-    dadosAvaliacaoPendente: Pair<Double, Double>? = null,
     onVoltar: () -> Unit,
     onSalvoComSucesso: (Long) -> Unit
 ) {
@@ -104,13 +103,10 @@ fun CadastroCriancaScreen(
                 FilterChip(
                     selected = state.sexo == "M",
                     onClick = { viewModel.onSexoChange("M") },
-                    enabled = !state.dadosDaAvaliacao,
                     label = { Text("Masculino (Menino)") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = PrimaryGreen,
-                        selectedLabelColor = Color.White,
-                        disabledSelectedContainerColor = PrimaryGreen.copy(alpha = 0.6f),
-                        disabledLabelColor = Color.White
+                        selectedLabelColor = Color.White
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -118,13 +114,10 @@ fun CadastroCriancaScreen(
                 FilterChip(
                     selected = state.sexo == "F",
                     onClick = { viewModel.onSexoChange("F") },
-                    enabled = !state.dadosDaAvaliacao,
                     label = { Text("Feminino (Menina)") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = PrimaryGreen,
-                        selectedLabelColor = Color.White,
-                        disabledSelectedContainerColor = PrimaryGreen.copy(alpha = 0.6f),
-                        disabledLabelColor = Color.White
+                        selectedLabelColor = Color.White
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -138,10 +131,6 @@ fun CadastroCriancaScreen(
                 label = { Text("Data de Nascimento (DD/MM/AAAA) *") },
                 placeholder = { Text("Ex: 15/04/2023") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                readOnly = state.dadosDaAvaliacao,
-                supportingText = if (state.dadosDaAvaliacao) {
-                    { Text("Informada na avaliação. Para alterar, volte e refaça o cálculo.") }
-                } else null,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -267,7 +256,6 @@ fun CadastroCriancaScreen(
             Button(
                 onClick = {
                     viewModel.salvar(
-                        dadosAvaliacaoPendente = dadosAvaliacaoPendente,
                         onSucesso = onSalvoComSucesso
                     )
                 },
