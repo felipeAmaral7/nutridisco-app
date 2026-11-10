@@ -108,5 +108,37 @@ object Migrations {
     )
 
     /** Todas as migrações, em ordem. Versão atual: [com.nutridisco.app.data.local.AppDatabase.VERSION]. */
-    val TODAS: Array<Migration> = arrayOf(MIGRATION_2_3)
+    /**
+     * 3 → 4: índice único em `criancas.numero_cns`.
+     *
+     * Antes de criar o índice, os dados existentes são preparados para não violá-lo:
+     * 1. o CNS é normalizado (sem espaços, pontos e hífens; vazio vira NULL);
+     * 2. se o mesmo CNS aparece em mais de uma criança, ele fica só na de menor id
+     *    (a primeira cadastrada) e é removido das demais — as crianças e suas avaliações
+     *    continuam no banco, apenas sem o CNS repetido.
+     */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                UPDATE criancas SET numero_cns = NULLIF(
+                    REPLACE(REPLACE(REPLACE(TRIM(numero_cns), ' ', ''), '.', ''), '-', ''), ''
+                )
+                WHERE numero_cns IS NOT NULL
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                UPDATE criancas SET numero_cns = NULL
+                WHERE numero_cns IS NOT NULL
+                  AND id > (SELECT MIN(c2.id) FROM criancas c2 WHERE c2.numero_cns = criancas.numero_cns)
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_criancas_numero_cns` ON `criancas` (`numero_cns`)"
+            )
+        }
+    }
+
+    val TODAS: Array<Migration> = arrayOf(MIGRATION_2_3, MIGRATION_3_4)
 }

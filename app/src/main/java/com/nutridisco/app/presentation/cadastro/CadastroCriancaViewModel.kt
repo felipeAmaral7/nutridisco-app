@@ -13,6 +13,7 @@ import com.nutridisco.app.domain.repository.TerritorioRepository
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
 import com.nutridisco.app.domain.util.IdadeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -111,7 +112,9 @@ class CadastroCriancaViewModel @Inject constructor(
     }
 
     fun onNumeroCnsChange(cns: String) {
-        _uiState.value = _uiState.value.copy(numeroCns = cns, erro = null)
+        // CNS tem 15 dígitos; descarta espaços/pontuação colados para não burlar a checagem de duplicidade
+        val somenteDigitos = cns.filter(Char::isDigit).take(CNS_TAMANHO)
+        _uiState.value = _uiState.value.copy(numeroCns = somenteDigitos, erro = null)
     }
 
     fun onPoloBaseSelecionado(poloId: Long) {
@@ -161,6 +164,11 @@ class CadastroCriancaViewModel @Inject constructor(
             return
         }
 
+        if (state.numeroCns.isNotEmpty() && state.numeroCns.length != CNS_TAMANHO) {
+            _uiState.value = state.copy(erro = "O CNS deve ter $CNS_TAMANHO dígitos")
+            return
+        }
+
         val idadeCalculadaMeses = IdadeUtils.calcularIdadeEmMesesCompletos(dataNascTimestamp)
         if (dadosAvaliacaoPendente != null && idadeCalculadaMeses >= 60) {
             _uiState.value = state.copy(
@@ -171,58 +179,89 @@ class CadastroCriancaViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = state.copy(salvando = true, erro = null)
-
-            // 1. Obter ou criar comunidade on-the-fly
-            val comunidadeId = territorioRepository.obterOuCriarComunidade(
-                poloBaseId = state.poloBaseId,
-                nomeComunidade = state.comunidadeNome
-            )
-
-            // 2. Salvar Criança
-            val criancaId = criancaRepository.salvarCrianca(
-                CriancaEntity(
-                    comunidadeId = comunidadeId,
-                    nome = state.nome.trim(),
-                    sexo = state.sexo,
-                    dataNascimento = dataNascTimestamp,
-                    nomeResponsavel = state.nomeResponsavel.trim(),
-                    numeroCns = state.numeroCns.trim().ifEmpty { null }
-                )
-            )
-
-            // 3. Se houver avaliação pendente (originada da Avaliação Rápida), salvar agora
-            if (dadosAvaliacaoPendente != null) {
-                val config = configuracaoRepository.getConfiguracao()
-                val peso = dadosAvaliacaoPendente.first
-                val estatura = dadosAvaliacaoPendente.second
-                val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(dataNascTimestamp)
-
-                val resultado = calcularClassificacaoUseCase(
-                    idadeMeses = idadeMeses,
-                    sexo = state.sexo,
-                    peso = peso,
-                    estatura = estatura
-                )
-
-                avaliacaoRepository.salvarAvaliacao(
-                    AvaliacaoEntity(
-                        criancaId = criancaId,
-                        comunidadeAtendimentoId = comunidadeId,
-                        dataAtendimento = System.currentTimeMillis(),
-                        idadeMesesMomento = idadeMeses,
-                        peso = peso,
-                        estatura = estatura,
-                        classificacaoEstatura = resultado.classificacaoEstatura,
-                        classificacaoPeso = resultado.classificacaoPeso,
-                        observacoes = "Criada a partir da Avaliação Rápida",
-                        nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
-                        registroCoren = config?.registroCoren ?: "Não informado"
-                    )
-                )
+            try {
+                salvarDados(state, state.poloBaseId, dataNascTimestamp, dadosAvaliacaoPendente, onSucesso)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(salvando = false, erro = ERRO_AO_SALVAR)
             }
-
-            _uiState.value = _uiState.value.copy(salvando = false)
-            onSucesso(criancaId)
         }
+    }
+
+    private suspend fun salvarDados(
+        state: CadastroCriancaUiState,
+        poloBaseId: Long,
+        dataNascTimestamp: Long,
+        dadosAvaliacaoPendente: Pair<Double, Double>?,
+        onSucesso: (Long) -> Unit
+    ) {
+        val cns = state.numeroCns.ifEmpty { null }
+        if (cns != null) {
+            criancaRepository.buscarCriancaPorCns(cns)?.let { existente ->
+                _uiState.value = _uiState.value.copy(
+                    salvando = false,
+                    erro = "Este CNS já está cadastrado para ${existente.nome}."
+                )
+                return
+            }
+        }
+
+        // 1. Obter ou criar comunidade on-the-fly
+        val comunidadeId = territorioRepository.obterOuCriarComunidade(
+            poloBaseId = poloBaseId,
+            nomeComunidade = state.comunidadeNome
+        )
+
+        // 2. Salvar Criança
+        val criancaId = criancaRepository.salvarCrianca(
+            CriancaEntity(
+                comunidadeId = comunidadeId,
+                nome = state.nome.trim(),
+                sexo = state.sexo,
+                dataNascimento = dataNascTimestamp,
+                nomeResponsavel = state.nomeResponsavel.trim(),
+                numeroCns = cns
+            )
+        )
+
+        // 3. Se houver avaliação pendente (originada da Avaliação Rápida), salvar agora
+        if (dadosAvaliacaoPendente != null) {
+            val config = configuracaoRepository.getConfiguracao()
+            val peso = dadosAvaliacaoPendente.first
+            val estatura = dadosAvaliacaoPendente.second
+            val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(dataNascTimestamp)
+
+            val resultado = calcularClassificacaoUseCase(
+                idadeMeses = idadeMeses,
+                sexo = state.sexo,
+                peso = peso,
+                estatura = estatura
+            )
+
+            avaliacaoRepository.salvarAvaliacao(
+                AvaliacaoEntity(
+                    criancaId = criancaId,
+                    comunidadeAtendimentoId = comunidadeId,
+                    dataAtendimento = System.currentTimeMillis(),
+                    idadeMesesMomento = idadeMeses,
+                    peso = peso,
+                    estatura = estatura,
+                    classificacaoEstatura = resultado.classificacaoEstatura,
+                    classificacaoPeso = resultado.classificacaoPeso,
+                    observacoes = "Criada a partir da Avaliação Rápida",
+                    nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
+                    registroCoren = config?.registroCoren ?: "Não informado"
+                )
+            )
+        }
+
+        _uiState.value = _uiState.value.copy(salvando = false)
+        onSucesso(criancaId)
+    }
+
+    private companion object {
+        const val CNS_TAMANHO = 15
+        const val ERRO_AO_SALVAR = "Não foi possível salvar o cadastro. Tente novamente."
     }
 }

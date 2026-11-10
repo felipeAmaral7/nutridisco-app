@@ -82,6 +82,9 @@ interface CriancaDao {
     )
     fun pesquisarPorNome(termo: String): Flow<List<CriancaComComunidade>>
 
+    @Query("SELECT * FROM criancas WHERE numero_cns = :cns LIMIT 1")
+    suspend fun buscarPorCns(cns: String): CriancaEntity?
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun inserir(crianca: CriancaEntity): Long
 

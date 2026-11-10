@@ -4,7 +4,10 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nutridisco.app.data.local.AppDatabase
+import android.database.sqlite.SQLiteConstraintException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,6 +61,56 @@ class MigrationInstrumentedTest {
         assertEquals("BAIXA_ESTATURA" to "PESO_ELEVADO", classificacoes(db, 1))
         db.close()
     }
+
+    @Test
+    fun migracao3Para4_normalizaCnsEMantemApenasPrimeiroDuplicado() {
+        helper.createDatabase(nomeBanco, 3).use { db ->
+            inserirBase(db) // criança 1, sem CNS
+            inserirCrianca(db, 2, "898 0010 0000 0001")
+            inserirCrianca(db, 3, "898001000000001") // mesmo CNS da 2, sem espaços
+            inserirCrianca(db, 4, "   ") // vazio
+            inserirCrianca(db, 5, "700000000000005")
+        }
+
+        val db = helper.runMigrationsAndValidate(nomeBanco, 4, true, Migrations.MIGRATION_3_4)
+
+        assertNull(cns(db, 1))
+        assertEquals("898001000000001", cns(db, 2))
+        assertNull(cns(db, 3)) // duplicado: CNS removido, criança mantida
+        assertNull(cns(db, 4))
+        assertEquals("700000000000005", cns(db, 5))
+        assertEquals(5, db.query("SELECT COUNT(*) FROM criancas").use { it.moveToFirst(); it.getInt(0) })
+        db.close()
+    }
+
+    @Test
+    fun migracao3Para4_indicePermiteVariosSemCnsERecusaRepetido() {
+        helper.createDatabase(nomeBanco, 3).use { db -> inserirBase(db) }
+
+        val db = helper.runMigrationsAndValidate(nomeBanco, 4, true, Migrations.MIGRATION_3_4)
+
+        inserirCrianca(db, 2, null)
+        inserirCrianca(db, 3, null) // vários NULL são permitidos
+        inserirCrianca(db, 4, "700000000000004")
+        assertThrows(SQLiteConstraintException::class.java) {
+            inserirCrianca(db, 5, "700000000000004")
+        }
+        db.close()
+    }
+
+    private fun inserirCrianca(db: androidx.sqlite.db.SupportSQLiteDatabase, id: Long, cns: String?) {
+        db.execSQL(
+            "INSERT INTO criancas (id, comunidade_id, nome, sexo, data_nascimento, nome_responsavel, numero_cns) " +
+                "VALUES (?, 1, ?, 'F', 0, 'Responsável', ?)",
+            arrayOf(id, "Criança $id", cns)
+        )
+    }
+
+    private fun cns(db: androidx.sqlite.db.SupportSQLiteDatabase, id: Long): String? =
+        db.query("SELECT numero_cns FROM criancas WHERE id = ?", arrayOf(id)).use { c ->
+            c.moveToFirst()
+            if (c.isNull(0)) null else c.getString(0)
+        }
 
     private fun inserirBase(db: androidx.sqlite.db.SupportSQLiteDatabase) {
         db.execSQL("INSERT INTO polos_base (id, nome, etnorregiao) VALUES (1, 'Polo', 'Serras')")

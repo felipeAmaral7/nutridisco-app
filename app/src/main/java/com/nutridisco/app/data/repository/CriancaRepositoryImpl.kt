@@ -26,6 +26,11 @@ class CriancaRepositoryImpl @Inject constructor(
             dao.buscarPorId(id)
         }
 
+    override suspend fun buscarCriancaPorCns(cns: String): CriancaEntity? =
+        withContext(ioDispatcher) {
+            dao.buscarPorCns(cns)
+        }
+
     override fun pesquisarCriancas(termo: String): Flow<List<CriancaComComunidade>> =
         dao.pesquisarPorNome(termo)
 

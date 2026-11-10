@@ -22,7 +22,9 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index(value = ["comunidade_id"]),
-        Index(value = ["nome"])
+        Index(value = ["nome"]),
+        // Único entre os preenchidos: no SQLite, vários registros com NULL (sem CNS) são permitidos.
+        Index(value = ["numero_cns"], unique = true)
     ]
 )
 data class CriancaEntity(
@@ -44,6 +46,7 @@ data class CriancaEntity(
     @ColumnInfo(name = "nome_responsavel")
     val nomeResponsavel: String,
 
+    /** Opcional. Gravado só com dígitos; não pode se repetir entre crianças. */
     @ColumnInfo(name = "numero_cns")
     val numeroCns: String? = null
 )
