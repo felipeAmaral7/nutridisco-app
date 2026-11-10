@@ -21,8 +21,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,10 +42,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nutridisco.app.presentation.components.MascaraDataVisualTransformation
 import com.nutridisco.app.presentation.theme.StatusRed
 import com.nutridisco.app.presentation.ui.SexoOpcao
 
@@ -80,8 +78,7 @@ fun AvaliacaoRapidaScreen(
     AvaliacaoRapidaConteudo(
         state = state,
         onVoltar = onVoltar,
-        onAnosChange = viewModel::onAnosChange,
-        onMesesChange = viewModel::onMesesChange,
+        onDataNascimentoChange = viewModel::onDataNascimentoChange,
         onPesoChange = viewModel::onPesoChange,
         onEstaturaChange = viewModel::onEstaturaChange,
         onCalcular = viewModel::calcular,
@@ -93,8 +90,7 @@ fun AvaliacaoRapidaScreen(
 private fun AvaliacaoRapidaConteudo(
     state: AvaliacaoRapidaUiState,
     onVoltar: () -> Unit,
-    onAnosChange: (Int) -> Unit,
-    onMesesChange: (Int) -> Unit,
+    onDataNascimentoChange: (String) -> Unit,
     onPesoChange: (String) -> Unit,
     onEstaturaChange: (String) -> Unit,
     onCalcular: () -> Unit,
@@ -122,33 +118,13 @@ private fun AvaliacaoRapidaConteudo(
             ChipSexo(emoji = sexoOpcao.emoji, label = sexoOpcao.label)
 
             Spacer(Modifier.height(24.dp))
-            TituloCampo("Idade")
+            TituloCampo("Data de nascimento")
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Stepper(
-                    rotulo = "Anos",
-                    valor = state.anos,
-                    minimo = 0,
-                    maximo = AvaliacaoRapidaViewModel.ANOS_MAX,
-                    onChange = onAnosChange,
-                    modifier = Modifier.weight(1f),
-                )
-                Stepper(
-                    rotulo = "Meses",
-                    valor = state.meses,
-                    minimo = 0,
-                    maximo = AvaliacaoRapidaViewModel.MESES_MAX,
-                    onChange = onMesesChange,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "Ex: 2 anos e 3 meses",
-                fontSize = 11.sp,
-                color = TextoSecundario,
+            CampoDataNascimento(
+                digitos = state.dataNascimento,
+                status = state.dataNascimentoStatus,
+                onChange = onDataNascimentoChange,
             )
-
             Spacer(Modifier.height(24.dp))
             TituloCampo("Peso (kg)")
             Spacer(Modifier.height(10.dp))
@@ -276,50 +252,50 @@ private fun TituloCampo(texto: String) {
 }
 
 @Composable
-private fun Stepper(
-    rotulo: String,
-    valor: Int,
-    minimo: Int,
-    maximo: Int,
-    onChange: (Int) -> Unit,
-    modifier: Modifier = Modifier,
+private fun CampoDataNascimento(
+    digitos: String,
+    status: DataNascimentoStatus,
+    onChange: (String) -> Unit,
 ) {
-    Column(modifier = modifier) {
-        Text(text = rotulo, fontSize = 12.sp, color = TextoSecundario)
-        Spacer(Modifier.height(6.dp))
-        Surface(
-            color = Color.White,
-            shape = RoundedCornerShape(12.dp),
-            shadowElevation = 2.dp,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                IconButton(
-                    onClick = { onChange((valor - 1).coerceAtLeast(minimo)) },
-                    enabled = valor > minimo,
-                ) {
-                    Icon(Icons.Filled.Remove, contentDescription = "Diminuir $rotulo")
-                }
-                Text(
-                    text = valor.toString(),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = TextoPrimario,
-                    textAlign = TextAlign.Center,
-                )
-                IconButton(
-                    onClick = { onChange((valor + 1).coerceAtMost(maximo)) },
-                    enabled = valor < maximo,
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Aumentar $rotulo")
-                }
-            }
-        }
+    val erro = when (status) {
+        DataNascimentoStatus.Invalida -> "Data inexistente. Confira dia, mês e ano."
+        DataNascimentoStatus.Futura -> "A data de nascimento não pode ser no futuro."
+        is DataNascimentoStatus.ForaDaFaixa -> AvaliacaoRapidaViewModel.mensagemForaDaFaixa(status.idadeMeses)
+        else -> null
+    }
+
+    TextField(
+        value = digitos,
+        onValueChange = onChange,
+        placeholder = { Text("dd/mm/aaaa", color = TextoPrimario.copy(alpha = 0.6f)) },
+        visualTransformation = MascaraDataVisualTransformation,
+        isError = erro != null,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        shape = RoundedCornerShape(12.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            errorContainerColor = Color.White,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            errorIndicatorColor = StatusRed,
+            cursorColor = VerdeBotao,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(12.dp)),
+    )
+    Spacer(Modifier.height(6.dp))
+    when {
+        erro != null -> Text(text = erro, fontSize = 12.sp, color = StatusRed, fontWeight = FontWeight.Medium)
+        status is DataNascimentoStatus.Valida -> Text(
+            text = "Idade: ${status.idadeExtenso} (${status.idadeMeses} meses)",
+            fontSize = 13.sp,
+            color = VerdeBotao,
+            fontWeight = FontWeight.Medium,
+        )
+        else -> Text(text = "Ex: 15/04/2024", fontSize = 11.sp, color = TextoSecundario)
     }
 }
 
@@ -376,10 +352,14 @@ private fun IndicadorEtapas(total: Int, atual: Int) {
 private fun AvaliacaoRapidaScreenPreview() {
     MaterialTheme {
         AvaliacaoRapidaConteudo(
-            state = AvaliacaoRapidaUiState(sexo = "F", anos = 2, meses = 3, peso = "12,4"),
+            state = AvaliacaoRapidaUiState(
+                sexo = "F",
+                dataNascimento = "10022025",
+                dataNascimentoStatus = DataNascimentoStatus.Valida(0L, 21, "1 ano e 9 meses"),
+                peso = "12,4",
+            ),
             onVoltar = {},
-            onAnosChange = {},
-            onMesesChange = {},
+            onDataNascimentoChange = {},
             onPesoChange = {},
             onEstaturaChange = {},
             onCalcular = {},

@@ -5,6 +5,7 @@ import com.nutridisco.app.domain.model.ClassificacaoEstatura
 import com.nutridisco.app.domain.model.ClassificacaoPeso
 import com.nutridisco.app.domain.repository.ReferenciaAntropometricaRepository
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
+import com.nutridisco.app.domain.util.DataUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -20,6 +21,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AvaliacaoRapidaViewModelTest {
@@ -64,6 +68,9 @@ class AvaliacaoRapidaViewModelTest {
         override suspend fun contar(): Int = 2
     }
 
+    /** "Hoje" fixo nos testes: 10/11/2026, meio-dia em Boa Vista. */
+    private val clock = Clock.fixed(Instant.parse("2026-11-10T16:00:00Z"), ZoneId.of("America/Boa_Vista"))
+
     private lateinit var useCase: CalcularClassificacaoNutricionalUseCase
     private lateinit var viewModel: AvaliacaoRapidaViewModel
 
@@ -73,7 +80,7 @@ class AvaliacaoRapidaViewModelTest {
         fakeRepo.shouldThrow = false
         fakeRepo.retornarNulo = false
         useCase = CalcularClassificacaoNutricionalUseCase(fakeRepo)
-        viewModel = AvaliacaoRapidaViewModel(useCase)
+        viewModel = AvaliacaoRapidaViewModel(useCase, clock)
     }
 
     @After
@@ -82,26 +89,71 @@ class AvaliacaoRapidaViewModelTest {
     }
 
     @Test
-    fun `idade deve comecar em 2 anos e 6 meses`() {
-        val state = viewModel.uiState.value
-        assertEquals(2, state.anos)
-        assertEquals(6, state.meses)
-        assertEquals(30, state.idadeMeses)
+    fun `data de nascimento valida deve calcular idade em meses e por extenso`() {
+        viewModel.onDataNascimentoChange("10022025")
+
+        val status = viewModel.uiState.value.dataNascimentoStatus as DataNascimentoStatus.Valida
+        assertEquals(21, status.idadeMeses)
+        assertEquals("1 ano e 9 meses", status.idadeExtenso)
     }
 
     @Test
-    fun `anos e meses devem ser limitados aos tetos maximos e calcular idadeMeses`() {
-        viewModel.onAnosChange(5) // Max é 4
-        viewModel.onMesesChange(15) // Max é 11
+    fun `campo de data deve guardar apenas os digitos`() {
+        viewModel.onDataNascimentoChange("10/02/2025")
+        assertEquals("10022025", viewModel.uiState.value.dataNascimento)
 
-        val state = viewModel.uiState.value
-        assertEquals(4, state.anos)
-        assertEquals(11, state.meses)
-        assertEquals(59, state.idadeMeses)
+        viewModel.onDataNascimentoChange("100220251")
+        assertEquals("10022025", viewModel.uiState.value.dataNascimento)
     }
 
     @Test
-    fun `podeCalcular deve ser verdadeiro apenas com peso e estatura positivos`() {
+    fun `data incompleta nao deve ser interpretada`() {
+        viewModel.onDataNascimentoChange("1002")
+        assertEquals(DataNascimentoStatus.Incompleta, viewModel.uiState.value.dataNascimentoStatus)
+    }
+
+    @Test
+    fun `data inexistente deve ser invalida`() {
+        viewModel.onDataNascimentoChange("31022025")
+        assertEquals(DataNascimentoStatus.Invalida, viewModel.uiState.value.dataNascimentoStatus)
+    }
+
+    @Test
+    fun `data no futuro deve ser recusada`() {
+        viewModel.onDataNascimentoChange("11112026")
+        assertEquals(DataNascimentoStatus.Futura, viewModel.uiState.value.dataNascimentoStatus)
+    }
+
+    @Test
+    fun `59 meses deve ser aceito e 60 meses deve ficar fora da faixa`() {
+        viewModel.onDataNascimentoChange("11112021")
+        val status = viewModel.uiState.value.dataNascimentoStatus as DataNascimentoStatus.Valida
+        assertEquals(59, status.idadeMeses)
+
+        viewModel.onDataNascimentoChange("10112021")
+        assertEquals(DataNascimentoStatus.ForaDaFaixa(60), viewModel.uiState.value.dataNascimentoStatus)
+    }
+
+    @Test
+    fun `calcular sem data valida deve exibir erro e nao navegar`() = runTest(testDispatcher) {
+        viewModel.onDataNascimentoChange("1002")
+        viewModel.onPesoChange("11,5")
+        viewModel.onEstaturaChange("85,0")
+
+        viewModel.calcular()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.erro?.contains("data de nascimento") == true)
+        assertNull(state.resultado)
+        assertFalse(state.navegarParaResultado)
+    }
+
+    @Test
+    fun `podeCalcular deve exigir data valida, peso e estatura positivos`() {
+        assertFalse(viewModel.uiState.value.podeCalcular)
+
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         assertFalse(viewModel.uiState.value.podeCalcular)
 
         viewModel.onPesoChange("10,5")
@@ -140,8 +192,7 @@ class AvaliacaoRapidaViewModelTest {
     @Test
     fun `calcular deve atualizar resultado com sucesso quando entradas sao validas`() = runTest(testDispatcher) {
         viewModel.onSexoChange("F")
-        viewModel.onAnosChange(2)
-        viewModel.onMesesChange(0)
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         viewModel.onPesoChange("11,5")
         viewModel.onEstaturaChange("85,0")
 
@@ -154,12 +205,14 @@ class AvaliacaoRapidaViewModelTest {
         assertNotNull(state.resultado)
         assertEquals("F", state.resultado?.sexo)
         assertEquals(24, state.resultado?.idadeMeses)
+        assertEquals("10/11/2024", DataUtils.formatar(state.dataNascimentoResultado!!, clock.zone))
         assertEquals(ClassificacaoPeso.PESO_ADEQUADO, state.resultado?.classificacaoPeso)
         assertEquals(ClassificacaoEstatura.ESTATURA_ADEQUADA, state.resultado?.classificacaoEstatura)
     }
 
     @Test
     fun `calcular com sucesso deve emitir navegacao unica para o resultado`() = runTest(testDispatcher) {
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         viewModel.onPesoChange("11,5")
         viewModel.onEstaturaChange("85,0")
 
@@ -176,6 +229,7 @@ class AvaliacaoRapidaViewModelTest {
 
     @Test
     fun `calcular com erro nao deve navegar para o resultado`() = runTest(testDispatcher) {
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         viewModel.onPesoChange("60.0")
         viewModel.onEstaturaChange("85.0")
 
@@ -187,6 +241,7 @@ class AvaliacaoRapidaViewModelTest {
 
     @Test
     fun `calcular com valores fora dos limites deve exibir erro amigavel`() = runTest(testDispatcher) {
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         viewModel.onPesoChange("60.0") // Acima do teto de 50 kg
         viewModel.onEstaturaChange("85.0")
 
@@ -202,6 +257,7 @@ class AvaliacaoRapidaViewModelTest {
 
     @Test
     fun `calcular com erro inesperado do repositorio deve resetar calculando e exibir erro`() = runTest(testDispatcher) {
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         fakeRepo.shouldThrow = true
         viewModel.onPesoChange("10.0")
         viewModel.onEstaturaChange("80.0")
@@ -217,6 +273,7 @@ class AvaliacaoRapidaViewModelTest {
 
     @Test
     fun `calcular com referencia antropometrica ausente deve exibir erro clinico e cancelar resultado`() = runTest(testDispatcher) {
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         fakeRepo.retornarNulo = true
         viewModel.onPesoChange("10.0")
         viewModel.onEstaturaChange("80.0")
@@ -233,16 +290,21 @@ class AvaliacaoRapidaViewModelTest {
     @Test
     fun `limpar deve redefinir o estado mantendo o sexo`() {
         viewModel.onSexoChange("F")
-        viewModel.onAnosChange(3)
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
         viewModel.onPesoChange("14,0")
 
         viewModel.limpar()
 
         val state = viewModel.uiState.value
         assertEquals("F", state.sexo)
-        assertEquals(AvaliacaoRapidaViewModel.ANOS_INICIAL, state.anos)
-        assertEquals(AvaliacaoRapidaViewModel.MESES_INICIAL, state.meses)
+        assertEquals("", state.dataNascimento)
+        assertEquals(DataNascimentoStatus.Incompleta, state.dataNascimentoStatus)
         assertEquals("", state.peso)
         assertNull(state.resultado)
+    }
+
+    private companion object {
+        /** 10/11/2024: exatamente 24 meses em relação ao "hoje" fixo do [clock]. */
+        const val DATA_24_MESES = "10112024"
     }
 }

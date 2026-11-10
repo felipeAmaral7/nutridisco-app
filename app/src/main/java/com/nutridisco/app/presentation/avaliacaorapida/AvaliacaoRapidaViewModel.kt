@@ -6,6 +6,8 @@ import com.nutridisco.app.domain.model.ResultadoClassificacao
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
 import com.nutridisco.app.domain.usecase.IdadeLimiteExcedidaException
 import com.nutridisco.app.domain.usecase.ReferenciaNaoEncontradaException
+import com.nutridisco.app.domain.util.DataUtils
+import com.nutridisco.app.domain.util.IdadeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,28 +15,46 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Clock
 import javax.inject.Inject
+
+/** Situação da data de nascimento digitada, já interpretada em relação à data de hoje. */
+sealed interface DataNascimentoStatus {
+    /** Campo vazio ou ainda incompleto (menos de 8 dígitos). */
+    data object Incompleta : DataNascimentoStatus
+    data object Invalida : DataNascimentoStatus
+    data object Futura : DataNascimentoStatus
+    data class ForaDaFaixa(val idadeMeses: Int) : DataNascimentoStatus
+    data class Valida(
+        val dataNascimentoMillis: Long,
+        val idadeMeses: Int,
+        /** Ex.: "1 ano e 9 meses". */
+        val idadeExtenso: String,
+    ) : DataNascimentoStatus
+}
 
 data class AvaliacaoRapidaUiState(
     val sexo: String = "M",
-    /** Começa no meio da faixa (2 anos e 6 meses) para reduzir toques nos steppers. */
-    val anos: Int = AvaliacaoRapidaViewModel.ANOS_INICIAL,
-    val meses: Int = AvaliacaoRapidaViewModel.MESES_INICIAL,
+    /** Só os dígitos (ddMMaaaa); as barras são exibidas pela máscara do campo. */
+    val dataNascimento: String = "",
+    val dataNascimentoStatus: DataNascimentoStatus = DataNascimentoStatus.Incompleta,
     /** Texto exibido no campo; o separador decimal é sempre vírgula (ponto digitado vira vírgula). */
     val peso: String = "",
     val estatura: String = "",
     val calculando: Boolean = false,
     val resultado: ResultadoClassificacao? = null,
+    /** Data de nascimento usada no [resultado]; segue para o cadastro ao salvar o registro. */
+    val dataNascimentoResultado: Long? = null,
     /** Evento único: true logo após um cálculo bem-sucedido, até a tela navegar para o Resultado. */
     val navegarParaResultado: Boolean = false,
     val erro: String? = null
 ) {
-    val idadeMeses: Int get() = anos * 12 + meses
     val pesoValor: Double? get() = peso.toDecimalOrNull()
     val estaturaValor: Double? get() = estatura.toDecimalOrNull()
 
     val podeCalcular: Boolean
         get() = !calculando &&
+            dataNascimentoStatus is DataNascimentoStatus.Valida &&
             (pesoValor ?: 0.0) > 0.0 &&
             (estaturaValor ?: 0.0) > 0.0
 }
@@ -46,7 +66,8 @@ private fun String.comVirgulaDecimal(): String = replace('.', ',')
 
 @HiltViewModel
 class AvaliacaoRapidaViewModel @Inject constructor(
-    private val calcularClassificacaoUseCase: CalcularClassificacaoNutricionalUseCase
+    private val calcularClassificacaoUseCase: CalcularClassificacaoNutricionalUseCase,
+    private val clock: Clock
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AvaliacaoRapidaUiState())
@@ -56,12 +77,16 @@ class AvaliacaoRapidaViewModel @Inject constructor(
         _uiState.update { it.copy(sexo = sexo, resultado = null, erro = null) }
     }
 
-    fun onAnosChange(anos: Int) {
-        _uiState.update { it.copy(anos = anos.coerceIn(0, ANOS_MAX), resultado = null, erro = null) }
-    }
-
-    fun onMesesChange(meses: Int) {
-        _uiState.update { it.copy(meses = meses.coerceIn(0, MESES_MAX), resultado = null, erro = null) }
+    fun onDataNascimentoChange(texto: String) {
+        val digitos = DataUtils.somenteDigitos(texto)
+        _uiState.update {
+            it.copy(
+                dataNascimento = digitos,
+                dataNascimentoStatus = interpretarData(digitos),
+                resultado = null,
+                erro = null
+            )
+        }
     }
 
     fun onPesoChange(peso: String) {
@@ -80,10 +105,17 @@ class AvaliacaoRapidaViewModel @Inject constructor(
 
     fun calcular() {
         val state = _uiState.value
-        val idade = state.idadeMeses
+        // Reinterpreta no momento do cálculo: a idade pode ter mudado se a tela ficou aberta de um dia para o outro.
+        val status = interpretarData(state.dataNascimento)
         val peso = state.pesoValor
         val estatura = state.estaturaValor
 
+        if (status !is DataNascimentoStatus.Valida) {
+            _uiState.update {
+                it.copy(dataNascimentoStatus = status, erro = "Informe uma data de nascimento válida (dd/mm/aaaa).")
+            }
+            return
+        }
         if (peso == null || peso <= 0.0 || peso > PESO_MAX_KG) {
             _uiState.update { it.copy(erro = "Informe um peso válido (ex: 12,5 kg).") }
             return
@@ -93,26 +125,26 @@ class AvaliacaoRapidaViewModel @Inject constructor(
             return
         }
 
-        _uiState.update { it.copy(calculando = true, erro = null) }
+        _uiState.update { it.copy(dataNascimentoStatus = status, calculando = true, erro = null) }
         viewModelScope.launch {
             try {
                 val res = calcularClassificacaoUseCase(
-                    idadeMeses = idade,
+                    idadeMeses = status.idadeMeses,
                     sexo = state.sexo,
                     peso = peso,
                     estatura = estatura
                 )
                 _uiState.update {
-                    it.copy(calculando = false, resultado = res, navegarParaResultado = true)
+                    it.copy(
+                        calculando = false,
+                        resultado = res,
+                        dataNascimentoResultado = status.dataNascimentoMillis,
+                        navegarParaResultado = true
+                    )
                 }
             } catch (e: IdadeLimiteExcedidaException) {
                 _uiState.update {
-                    it.copy(
-                        calculando = false,
-                        resultado = null,
-                        erro = "Idade não permitida (${e.idadeMeses} meses). O NutriDisco atende " +
-                            "apenas crianças de 0 a 59 meses completos (menores de 5 anos)."
-                    )
+                    it.copy(calculando = false, resultado = null, erro = mensagemForaDaFaixa(e.idadeMeses))
                 }
             } catch (e: ReferenciaNaoEncontradaException) {
                 _uiState.update {
@@ -146,18 +178,34 @@ class AvaliacaoRapidaViewModel @Inject constructor(
         _uiState.update { AvaliacaoRapidaUiState(sexo = it.sexo) }
     }
 
+    private fun interpretarData(digitos: String): DataNascimentoStatus {
+        if (digitos.length < DataUtils.TOTAL_DIGITOS) return DataNascimentoStatus.Incompleta
+        val nascimento = DataUtils.parse(digitos, clock.zone) ?: return DataNascimentoStatus.Invalida
+        val agora = clock.millis()
+        if (nascimento > agora) return DataNascimentoStatus.Futura
+
+        val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(nascimento, agora, clock.zone)
+        if (idadeMeses > IDADE_MAX_MESES) return DataNascimentoStatus.ForaDaFaixa(idadeMeses)
+
+        return DataNascimentoStatus.Valida(
+            dataNascimentoMillis = nascimento,
+            idadeMeses = idadeMeses,
+            idadeExtenso = IdadeUtils.formatarIdadeExtenso(nascimento, agora, clock.zone)
+        )
+    }
+
     companion object {
-        /** 4 anos e 11 meses = 59 meses, limite superior do disco da OMS. */
-        const val ANOS_MAX = 4
-        const val MESES_MAX = 11
-        /** Valores iniciais no meio da faixa: 2 anos e 6 meses (30 meses). */
-        const val ANOS_INICIAL = 2
-        const val MESES_INICIAL = 6
+        /** 59 meses completos (menor de 5 anos): limite superior do disco da OMS. */
+        const val IDADE_MAX_MESES = 59
         const val PESO_MAX_KG = 50.0
         const val ESTATURA_MAX_CM = 150.0
         const val ERRO_INESPERADO =
             "Erro ao calcular a classificação nutricional. Tente novamente."
         const val ERRO_REFERENCIA_INDISPONIVEL = ReferenciaNaoEncontradaException.MENSAGEM_USUARIO
+
+        fun mensagemForaDaFaixa(idadeMeses: Int): String =
+            "Idade não permitida ($idadeMeses meses). O NutriDisco atende " +
+                "apenas crianças de 0 a 59 meses completos (menores de 5 anos)."
 
         private val REGEX_PESO = Regex("^\\d{0,3}(,\\d{0,3})?$")
         private val REGEX_ESTATURA = Regex("^\\d{0,3}(,\\d{0,2})?$")

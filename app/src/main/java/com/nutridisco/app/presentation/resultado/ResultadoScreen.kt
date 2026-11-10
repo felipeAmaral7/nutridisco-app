@@ -46,6 +46,7 @@ import com.nutridisco.app.data.local.entity.ReferenciaAntropometricaEntity
 import com.nutridisco.app.domain.model.ClassificacaoEstatura
 import com.nutridisco.app.domain.model.ClassificacaoPeso
 import com.nutridisco.app.domain.model.ResultadoClassificacao
+import com.nutridisco.app.domain.util.DataUtils
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaViewModel
 import com.nutridisco.app.presentation.ui.SexoOpcao
 import java.text.DecimalFormat
@@ -135,12 +136,13 @@ fun ResultadoScreen(
     viewModel: AvaliacaoRapidaViewModel,
     onVoltar: () -> Unit,
     onNovaAvaliacao: () -> Unit,
-    onSalvarRegistro: (ResultadoClassificacao) -> Unit,
+    onSalvarRegistro: (resultado: ResultadoClassificacao, dataNascimentoMillis: Long) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val resultado = state.resultado
+    val dataNascimento = state.dataNascimentoResultado
 
-    if (resultado == null) {
+    if (resultado == null || dataNascimento == null) {
         // Só ocorre de forma transitória (ex.: animação de saída); não há o que exibir.
         Box(Modifier.fillMaxSize().background(FundoBege))
         return
@@ -148,15 +150,17 @@ fun ResultadoScreen(
 
     ResultadoConteudo(
         resultado = resultado,
+        dataNascimentoMillis = dataNascimento,
         onVoltar = onVoltar,
         onNovaAvaliacao = onNovaAvaliacao,
-        onSalvarRegistro = { onSalvarRegistro(resultado) },
+        onSalvarRegistro = { onSalvarRegistro(resultado, dataNascimento) },
     )
 }
 
 @Composable
 private fun ResultadoConteudo(
     resultado: ResultadoClassificacao,
+    dataNascimentoMillis: Long,
     onVoltar: () -> Unit,
     onNovaAvaliacao: () -> Unit,
     onSalvarRegistro: () -> Unit,
@@ -176,7 +180,7 @@ private fun ResultadoConteudo(
                 .padding(horizontal = 20.dp),
         ) {
             Spacer(Modifier.height(20.dp))
-            CardCrianca(resultado)
+            CardCrianca(resultado, dataNascimentoMillis)
 
             Spacer(Modifier.height(28.dp))
             Text(
@@ -239,7 +243,7 @@ private fun TopBarResultado(onVoltar: () -> Unit) {
 }
 
 @Composable
-private fun CardCrianca(resultado: ResultadoClassificacao) {
+private fun CardCrianca(resultado: ResultadoClassificacao, dataNascimentoMillis: Long) {
     val sexo = SexoOpcao.entries.firstOrNull { it.valorDb == resultado.sexo } ?: SexoOpcao.MASCULINO
     val anos = resultado.idadeMeses / 12
     val meses = resultado.idadeMeses % 12
@@ -262,6 +266,11 @@ private fun CardCrianca(resultado: ResultadoClassificacao) {
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextoPrimario,
+                )
+                Text(
+                    text = "Nascimento: ${DataUtils.formatar(dataNascimentoMillis)}",
+                    fontSize = 13.sp,
+                    color = TextoSecundario,
                 )
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -414,6 +423,7 @@ private fun ResultadoScreenPreview() {
                 referenciaEstatura = ref,
                 referenciaPeso = ref,
             ),
+            dataNascimentoMillis = DataUtils.parse("10/02/2025")!!,
             onVoltar = {},
             onNovaAvaliacao = {},
             onSalvarRegistro = {},

@@ -12,6 +12,7 @@ import com.nutridisco.app.domain.repository.CriancaRepository
 import com.nutridisco.app.domain.repository.TerritorioRepository
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
 import com.nutridisco.app.domain.usecase.ReferenciaNaoEncontradaException
+import com.nutridisco.app.domain.util.DataUtils
 import com.nutridisco.app.domain.util.IdadeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -24,9 +25,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 data class CadastroCriancaUiState(
@@ -37,6 +35,8 @@ data class CadastroCriancaUiState(
     val numeroCns: String = "",
     val poloBaseId: Long? = null,
     val comunidadeNome: String = "",
+    /** true quando sexo e data de nascimento vieram da Avaliação Rápida e não podem ser alterados aqui. */
+    val dadosDaAvaliacao: Boolean = false,
     val salvando: Boolean = false,
     val erro: String? = null
 )
@@ -52,10 +52,6 @@ class CadastroCriancaViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CadastroCriancaUiState())
     val uiState: StateFlow<CadastroCriancaUiState> = _uiState.asStateFlow()
-
-    private val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
-        isLenient = false
-    }
 
     val polosBase: StateFlow<List<PoloBaseEntity>> = territorioRepository.listarPolosBase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -82,9 +78,15 @@ class CadastroCriancaViewModel @Inject constructor(
         }
     }
 
-    fun preencherDadosIniciais(sexo: String, idadeMeses: Int) {
+    /**
+     * Usa o sexo e a data de nascimento informados na Avaliação Rápida, para que a classificação
+     * gravada seja a mesma exibida na tela de Resultado (mesma idade em meses na consulta à OMS).
+     */
+    fun preencherDadosDaAvaliacao(sexo: String, dataNascimentoMillis: Long) {
         _uiState.value = _uiState.value.copy(
-            sexo = sexo
+            sexo = sexo,
+            dataNascimentoTexto = DataUtils.formatar(dataNascimentoMillis),
+            dadosDaAvaliacao = true
         )
     }
 
@@ -93,19 +95,14 @@ class CadastroCriancaViewModel @Inject constructor(
     }
 
     fun onSexoChange(sexo: String) {
+        if (_uiState.value.dadosDaAvaliacao) return
         _uiState.value = _uiState.value.copy(sexo = sexo, erro = null)
     }
 
     fun onDataNascimentoChange(data: String) {
+        if (_uiState.value.dadosDaAvaliacao) return
         // Formata máscara dd/MM/yyyy automaticamente
-        val digits = data.filter { it.isDigit() }
-        val formatted = buildString {
-            for (i in digits.indices) {
-                if (i == 2 || i == 4) append("/")
-                if (i < 8) append(digits[i])
-            }
-        }
-        _uiState.value = _uiState.value.copy(dataNascimentoTexto = formatted, erro = null)
+        _uiState.value = _uiState.value.copy(dataNascimentoTexto = DataUtils.aplicarMascara(data), erro = null)
     }
 
     fun onNomeResponsavelChange(nome: String) {
@@ -149,15 +146,10 @@ class CadastroCriancaViewModel @Inject constructor(
             return
         }
 
-        val dataNascTimestamp = try {
-            val parsedDate = dateFormatter.parse(state.dataNascimentoTexto)
-            if (parsedDate != null && parsedDate.after(Date())) {
-                _uiState.value = state.copy(erro = "Data de nascimento não pode ser futura")
-                return
-            }
-            parsedDate?.time
-        } catch (e: Exception) {
-            null
+        val dataNascTimestamp = DataUtils.parse(state.dataNascimentoTexto)
+        if (dataNascTimestamp != null && dataNascTimestamp > System.currentTimeMillis()) {
+            _uiState.value = state.copy(erro = "Data de nascimento não pode ser futura")
+            return
         }
 
         if (dataNascTimestamp == null) {

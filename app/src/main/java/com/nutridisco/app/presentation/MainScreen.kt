@@ -165,9 +165,9 @@ fun MainScreen() {
                             popUpTo(Screen.SelecaoSexo.route) { inclusive = true }
                         }
                     },
-                    onSalvarRegistro = { res ->
+                    onSalvarRegistro = { res, dataNascimento ->
                         navController.navigate(
-                            "${Screen.CadastroCrianca.route}?sexo=${res.sexo}&idade=${res.idadeMeses}" +
+                            "${Screen.CadastroCrianca.route}?sexo=${res.sexo}&dataNascimento=$dataNascimento" +
                                 "&peso=${res.peso}&estatura=${res.estatura}"
                         )
                     }
@@ -188,23 +188,26 @@ fun MainScreen() {
             }
 
             composable(
-                route = "${Screen.CadastroCrianca.route}?sexo={sexo}&idade={idade}&peso={peso}&estatura={estatura}",
+                route = "${Screen.CadastroCrianca.route}?sexo={sexo}&dataNascimento={dataNascimento}&peso={peso}&estatura={estatura}",
                 arguments = listOf(
                     navArgument("sexo") { type = NavType.StringType; defaultValue = "M" },
-                    navArgument("idade") { type = NavType.IntType; defaultValue = 0 },
+                    navArgument("dataNascimento") { type = NavType.LongType; defaultValue = -1L },
                     navArgument("peso") { type = NavType.FloatType; defaultValue = -1f },
                     navArgument("estatura") { type = NavType.FloatType; defaultValue = -1f }
                 )
             ) { backStackEntry ->
                 val viewModel: CadastroCriancaViewModel = hiltViewModel()
                 val sexo = backStackEntry.arguments?.getString("sexo") ?: "M"
-                val idade = backStackEntry.arguments?.getInt("idade") ?: 0
+                val dataNascimento = backStackEntry.arguments?.getLong("dataNascimento") ?: -1L
                 val peso = backStackEntry.arguments?.getFloat("peso")?.toDouble() ?: -1.0
                 val estatura = backStackEntry.arguments?.getFloat("estatura")?.toDouble() ?: -1.0
 
                 val dadosPendente = if (peso > 0 && estatura > 0) Pair(peso, estatura) else null
 
-                viewModel.preencherDadosIniciais(sexo, idade)
+                // Vindo da Avaliação Rápida: sexo e data de nascimento já foram informados e ficam travados.
+                LaunchedEffect(sexo, dataNascimento) {
+                    if (dataNascimento > 0) viewModel.preencherDadosDaAvaliacao(sexo, dataNascimento)
+                }
 
                 CadastroCriancaScreen(
                     viewModel = viewModel,
