@@ -25,6 +25,8 @@ data class AvaliacaoRapidaUiState(
     val estatura: String = "",
     val calculando: Boolean = false,
     val resultado: ResultadoClassificacao? = null,
+    /** Evento único: true logo após um cálculo bem-sucedido, até a tela navegar para o Resultado. */
+    val navegarParaResultado: Boolean = false,
     val erro: String? = null
 ) {
     val idadeMeses: Int get() = anos * 12 + meses
@@ -100,7 +102,9 @@ class AvaliacaoRapidaViewModel @Inject constructor(
                     peso = peso,
                     estatura = estatura
                 )
-                _uiState.update { it.copy(calculando = false, resultado = res) }
+                _uiState.update {
+                    it.copy(calculando = false, resultado = res, navegarParaResultado = true)
+                }
             } catch (e: IdadeLimiteExcedidaException) {
                 _uiState.update {
                     it.copy(
@@ -133,8 +137,9 @@ class AvaliacaoRapidaViewModel @Inject constructor(
         }
     }
 
-    fun fecharResultado() {
-        _uiState.update { it.copy(resultado = null) }
+    /** Consome o evento de navegação; o resultado continua disponível para a tela de Resultado. */
+    fun onNavegouParaResultado() {
+        _uiState.update { it.copy(navegarParaResultado = false) }
     }
 
     fun limpar() {

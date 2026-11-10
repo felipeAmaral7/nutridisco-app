@@ -23,22 +23,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -52,8 +48,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nutridisco.app.domain.model.ResultadoClassificacao
-import com.nutridisco.app.presentation.components.StatusBadge
 import com.nutridisco.app.presentation.theme.StatusRed
 import com.nutridisco.app.presentation.ui.SexoOpcao
 
@@ -72,9 +66,16 @@ private val PontoInativo = Color(0xFFBDBDBD)
 fun AvaliacaoRapidaScreen(
     viewModel: AvaliacaoRapidaViewModel,
     onVoltar: () -> Unit,
-    onSalvarRegistro: (sexo: String, idadeMeses: Int, peso: Double, estatura: Double) -> Unit,
+    onResultadoCalculado: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(state.navegarParaResultado) {
+        if (state.navegarParaResultado) {
+            viewModel.onNavegouParaResultado()
+            onResultadoCalculado()
+        }
+    }
 
     AvaliacaoRapidaConteudo(
         state = state,
@@ -86,16 +87,6 @@ fun AvaliacaoRapidaScreen(
         onCalcular = viewModel::calcular,
     )
 
-    state.resultado?.let { res ->
-        ResultadoBottomSheet(
-            resultado = res,
-            onFechar = viewModel::fecharResultado,
-            onSalvar = {
-                viewModel.fecharResultado()
-                onSalvarRegistro(res.sexo, res.idadeMeses, res.peso, res.estatura)
-            },
-        )
-    }
 }
 
 @Composable
@@ -219,81 +210,6 @@ private fun AvaliacaoRapidaConteudo(
             }
         }
         Spacer(Modifier.height(16.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ResultadoBottomSheet(
-    resultado: ResultadoClassificacao,
-    onFechar: () -> Unit,
-    onSalvar: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val anos = resultado.idadeMeses / 12
-    val meses = resultado.idadeMeses % 12
-    val sexoLabel = if (resultado.sexo == "F") "Menina" else "Menino"
-
-    ModalBottomSheet(
-        onDismissRequest = onFechar,
-        sheetState = sheetState,
-        containerColor = FundoBege,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            Text(
-                text = "Resultado da avaliação",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = VerdeTopBar,
-            )
-            Text(
-                text = "$sexoLabel · $anos ano(s) e $meses mes(es) (${resultado.idadeMeses} meses) · " +
-                    "Referência OMS/SISVAN",
-                fontSize = 12.sp,
-                color = TextoSecundario,
-            )
-
-            Spacer(Modifier.height(20.dp))
-            TituloCampo("Estatura para a idade")
-            Spacer(Modifier.height(6.dp))
-            StatusBadge(
-                texto = resultado.classificacaoEstatura.descricao,
-                nivelRisco = resultado.classificacaoEstatura.nivelRisco,
-            )
-
-            Spacer(Modifier.height(16.dp))
-            TituloCampo("Peso para a idade")
-            Spacer(Modifier.height(6.dp))
-            StatusBadge(
-                texto = resultado.classificacaoPeso.descricao,
-                nivelRisco = resultado.classificacaoPeso.nivelRisco,
-            )
-
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = onSalvar,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VerdeBotao),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-            ) {
-                Icon(Icons.Filled.Save, contentDescription = null)
-                Spacer(Modifier.size(8.dp))
-                Text("Salvar no histórico da criança", fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            }
-            TextButton(
-                onClick = onFechar,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Fechar", color = VerdeBotao)
-            }
-        }
     }
 }
 

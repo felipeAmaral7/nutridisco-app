@@ -159,6 +159,33 @@ class AvaliacaoRapidaViewModelTest {
     }
 
     @Test
+    fun `calcular com sucesso deve emitir navegacao unica para o resultado`() = runTest(testDispatcher) {
+        viewModel.onPesoChange("11,5")
+        viewModel.onEstaturaChange("85,0")
+
+        viewModel.calcular()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.navegarParaResultado)
+
+        viewModel.onNavegouParaResultado()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.navegarParaResultado)
+        assertNotNull("o resultado deve continuar disponível para a tela de Resultado", state.resultado)
+    }
+
+    @Test
+    fun `calcular com erro nao deve navegar para o resultado`() = runTest(testDispatcher) {
+        viewModel.onPesoChange("60.0")
+        viewModel.onEstaturaChange("85.0")
+
+        viewModel.calcular()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.navegarParaResultado)
+    }
+
+    @Test
     fun `calcular com valores fora dos limites deve exibir erro amigavel`() = runTest(testDispatcher) {
         viewModel.onPesoChange("60.0") // Acima do teto de 50 kg
         viewModel.onEstaturaChange("85.0")
@@ -204,7 +231,7 @@ class AvaliacaoRapidaViewModelTest {
     }
 
     @Test
-    fun `fecharResultado e limpar devem redefinir o estado mantendo o sexo`() {
+    fun `limpar deve redefinir o estado mantendo o sexo`() {
         viewModel.onSexoChange("F")
         viewModel.onAnosChange(3)
         viewModel.onPesoChange("14,0")

@@ -6,6 +6,7 @@ sealed class Screen(val route: String) {
     object SelecaoSexo : Screen("selecao_sexo")
     object Configuracao : Screen("configuracao")
     object AvaliacaoRapida : Screen("avaliacao_rapida")
+    object Resultado : Screen("resultado")
     object Criancas : Screen("criancas")
     object CadastroCrianca : Screen("cadastro_crianca")
     object PerfilCrianca : Screen("perfil_crianca/{criancaId}") {
