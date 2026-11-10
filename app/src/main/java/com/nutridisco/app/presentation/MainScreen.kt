@@ -142,6 +142,7 @@ fun MainScreen() {
                 }
                 AvaliacaoRapidaScreen(
                     viewModel = viewModel,
+                    onVoltar = { navController.popBackStack() },
                     onSalvarRegistro = { s, idadeMeses, peso, estatura ->
                         navController.navigate("${Screen.CadastroCrianca.route}?sexo=$s&idade=$idadeMeses&peso=$peso&estatura=$estatura")
                     }
@@ -232,8 +233,8 @@ fun MainScreen() {
                 ConfiguracaoScreen(
                     viewModel = viewModel,
                     onSalvo = {
-                        navController.navigate(Screen.AvaliacaoRapida.route) {
-                            popUpTo(Screen.AvaliacaoRapida.route) { inclusive = true }
+                        navController.navigate(Screen.SelecaoSexo.route) {
+                            popUpTo(Screen.Configuracao.route) { inclusive = true }
                         }
                     }
                 )

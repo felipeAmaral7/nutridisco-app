@@ -12,3 +12,12 @@ build/
 local.properties
 *.apk
 *.aab
+
+# Arquivos de contexto/consulta de assistentes de IA (uso local)
+GEMINI.md
+.gemini/
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+arquitetura_e_contexto_nutridisco.md
