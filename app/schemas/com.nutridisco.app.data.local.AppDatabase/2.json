@@ -1,0 +1,462 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "5c1192f1d923c0e87b942761a4e69b49",
+    "entities": [
+      {
+        "tableName": "configuracao_dispositivo",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `nome_profissional` TEXT NOT NULL, `registro_coren` TEXT NOT NULL, `polo_base_id_padrao` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`polo_base_id_padrao`) REFERENCES `polos_base`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nomeProfissional",
+            "columnName": "nome_profissional",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registroCoren",
+            "columnName": "registro_coren",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poloBaseIdPadrao",
+            "columnName": "polo_base_id_padrao",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_configuracao_dispositivo_polo_base_id_padrao",
+            "unique": false,
+            "columnNames": [
+              "polo_base_id_padrao"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_configuracao_dispositivo_polo_base_id_padrao` ON `${TABLE_NAME}` (`polo_base_id_padrao`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "polos_base",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "polo_base_id_padrao"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "polos_base",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nome` TEXT NOT NULL, `etnorregiao` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nome",
+            "columnName": "nome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etnorregiao",
+            "columnName": "etnorregiao",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "comunidades",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `polo_base_id` INTEGER NOT NULL, `nome` TEXT NOT NULL, FOREIGN KEY(`polo_base_id`) REFERENCES `polos_base`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poloBaseId",
+            "columnName": "polo_base_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nome",
+            "columnName": "nome",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comunidades_polo_base_id",
+            "unique": false,
+            "columnNames": [
+              "polo_base_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_comunidades_polo_base_id` ON `${TABLE_NAME}` (`polo_base_id`)"
+          },
+          {
+            "name": "index_comunidades_polo_base_id_nome",
+            "unique": true,
+            "columnNames": [
+              "polo_base_id",
+              "nome"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_comunidades_polo_base_id_nome` ON `${TABLE_NAME}` (`polo_base_id`, `nome`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "polos_base",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "polo_base_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "criancas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `comunidade_id` INTEGER NOT NULL, `nome` TEXT NOT NULL, `sexo` TEXT NOT NULL, `data_nascimento` INTEGER NOT NULL, `nome_responsavel` TEXT NOT NULL, `numero_cns` TEXT, FOREIGN KEY(`comunidade_id`) REFERENCES `comunidades`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comunidadeId",
+            "columnName": "comunidade_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nome",
+            "columnName": "nome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sexo",
+            "columnName": "sexo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataNascimento",
+            "columnName": "data_nascimento",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nomeResponsavel",
+            "columnName": "nome_responsavel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "numeroCns",
+            "columnName": "numero_cns",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_criancas_comunidade_id",
+            "unique": false,
+            "columnNames": [
+              "comunidade_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_criancas_comunidade_id` ON `${TABLE_NAME}` (`comunidade_id`)"
+          },
+          {
+            "name": "index_criancas_nome",
+            "unique": false,
+            "columnNames": [
+              "nome"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_criancas_nome` ON `${TABLE_NAME}` (`nome`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "comunidades",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comunidade_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "avaliacoes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `crianca_id` INTEGER NOT NULL, `comunidade_atendimento_id` INTEGER NOT NULL, `data_atendimento` INTEGER NOT NULL, `idade_meses_momento` INTEGER NOT NULL, `peso` REAL NOT NULL, `estatura` REAL NOT NULL, `classificacao_estatura` TEXT NOT NULL, `classificacao_peso` TEXT NOT NULL, `observacoes` TEXT, `nome_profissional` TEXT NOT NULL, `registro_coren` TEXT NOT NULL, FOREIGN KEY(`crianca_id`) REFERENCES `criancas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`comunidade_atendimento_id`) REFERENCES `comunidades`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "criancaId",
+            "columnName": "crianca_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comunidadeAtendimentoId",
+            "columnName": "comunidade_atendimento_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataAtendimento",
+            "columnName": "data_atendimento",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idadeMesesMomento",
+            "columnName": "idade_meses_momento",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peso",
+            "columnName": "peso",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estatura",
+            "columnName": "estatura",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "classificacaoEstatura",
+            "columnName": "classificacao_estatura",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "classificacaoPeso",
+            "columnName": "classificacao_peso",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observacoes",
+            "columnName": "observacoes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nomeProfissional",
+            "columnName": "nome_profissional",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registroCoren",
+            "columnName": "registro_coren",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_avaliacoes_crianca_id",
+            "unique": false,
+            "columnNames": [
+              "crianca_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_avaliacoes_crianca_id` ON `${TABLE_NAME}` (`crianca_id`)"
+          },
+          {
+            "name": "index_avaliacoes_comunidade_atendimento_id",
+            "unique": false,
+            "columnNames": [
+              "comunidade_atendimento_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_avaliacoes_comunidade_atendimento_id` ON `${TABLE_NAME}` (`comunidade_atendimento_id`)"
+          },
+          {
+            "name": "index_avaliacoes_data_atendimento",
+            "unique": false,
+            "columnNames": [
+              "data_atendimento"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_avaliacoes_data_atendimento` ON `${TABLE_NAME}` (`data_atendimento`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "criancas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "crianca_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "comunidades",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comunidade_atendimento_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "referencias_antropometricas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tipo_parametro` TEXT NOT NULL, `sexo` TEXT NOT NULL, `idade_meses` INTEGER NOT NULL, `escore_menos_3` REAL NOT NULL, `escore_menos_2` REAL NOT NULL, `escore_mais_2` REAL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipoParametro",
+            "columnName": "tipo_parametro",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sexo",
+            "columnName": "sexo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idadeMeses",
+            "columnName": "idade_meses",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "escoreMenos3",
+            "columnName": "escore_menos_3",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "escoreMenos2",
+            "columnName": "escore_menos_2",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "escoreMais2",
+            "columnName": "escore_mais_2",
+            "affinity": "REAL",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_referencias_antropometricas_tipo_parametro_sexo_idade_meses",
+            "unique": true,
+            "columnNames": [
+              "tipo_parametro",
+              "sexo",
+              "idade_meses"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_referencias_antropometricas_tipo_parametro_sexo_idade_meses` ON `${TABLE_NAME}` (`tipo_parametro`, `sexo`, `idade_meses`)"
+          }
+        ],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5c1192f1d923c0e87b942761a4e69b49')"
+    ]
+  }
+}

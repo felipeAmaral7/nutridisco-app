@@ -46,11 +46,22 @@ android {
         compose = true
     }
 
+    sourceSets {
+        // Schemas exportados pelo Room ficam disponíveis para os testes de migração (MigrationTestHelper)
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+ksp {
+    // Exporta o schema de cada versão do banco para app/schemas/ (versionado no git).
+    // É a base para escrever e testar migrações sem perder dados dos aparelhos.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -73,6 +84,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    androidTestImplementation(libs.androidx.room.testing)
 
     // Hilt
     implementation(libs.hilt.android)

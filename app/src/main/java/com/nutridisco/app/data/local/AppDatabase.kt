@@ -24,8 +24,8 @@ import com.nutridisco.app.data.local.entity.ReferenciaAntropometricaEntity
         AvaliacaoEntity::class,
         ReferenciaAntropometricaEntity::class
     ],
-    version = 2,
-    exportSchema = false
+    version = AppDatabase.VERSION,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -38,5 +38,14 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "nutridisco.db"
+
+        /**
+         * Versão atual do schema. Ao alterar qualquer entidade:
+         * 1. incremente este valor;
+         * 2. crie a Migration correspondente em [com.nutridisco.app.data.local.migrations.Migrations];
+         * 3. rode o build para gerar o novo JSON em app/schemas/ e faça commit dele.
+         * O teste MigrationsTest falha se a migração ou o schema estiverem faltando.
+         */
+        const val VERSION = 2
     }
 }

@@ -9,6 +9,7 @@ import com.nutridisco.app.data.local.dao.ConfiguracaoDispositivoDao
 import com.nutridisco.app.data.local.dao.CriancaDao
 import com.nutridisco.app.data.local.dao.PoloBaseDao
 import com.nutridisco.app.data.local.dao.ReferenciaAntropometricaDao
+import com.nutridisco.app.data.local.migrations.Migrations
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -38,7 +39,10 @@ object DatabaseModule {
             AppDatabase.DATABASE_NAME
         )
             .addCallback(com.nutridisco.app.data.local.seed.AppDatabaseCallback(context))
-            .fallbackToDestructiveMigration()
+            // Nunca apagar dados em atualizações: cada mudança de versão exige uma Migration explícita.
+            .addMigrations(*Migrations.TODAS)
+            // A versão 1 só existiu durante o desenvolvimento (nunca foi a campo), então pode ser recriada.
+            .fallbackToDestructiveMigrationFrom(1)
             .build()
     }
 
