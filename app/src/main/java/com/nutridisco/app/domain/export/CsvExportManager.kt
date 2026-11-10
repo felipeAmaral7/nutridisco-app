@@ -108,8 +108,8 @@ class CsvExportManager @Inject constructor(
                     item.idadeMesesMomento.toString(),
                     String.format(Locale.US, "%.2f", item.peso),
                     String.format(Locale.US, "%.1f", item.estatura),
-                    item.classificacaoEstatura,
-                    item.classificacaoPeso,
+                    item.classificacaoEstatura.descricao,
+                    item.classificacaoPeso.descricao,
                     item.observacoes.orEmpty()
                 )
                 sb.append(row.joinToString(";") { escapeCsv(it) }).append("\n")

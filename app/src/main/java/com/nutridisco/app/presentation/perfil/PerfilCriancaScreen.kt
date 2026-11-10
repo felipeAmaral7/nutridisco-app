@@ -40,9 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nutridisco.app.data.local.entity.AvaliacaoEntity
-import com.nutridisco.app.domain.model.ClassificacaoEstatura
-import com.nutridisco.app.domain.model.ClassificacaoPeso
-import com.nutridisco.app.domain.model.NivelRisco
 import com.nutridisco.app.domain.util.IdadeUtils
 import com.nutridisco.app.presentation.components.StatusBadge
 import com.nutridisco.app.presentation.theme.PrimaryGreen
@@ -197,9 +194,6 @@ fun AvaliacaoTimelineCard(
 ) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
-    val riscoEstatura = ClassificacaoEstatura.fromDescricao(avaliacao.classificacaoEstatura)?.nivelRisco ?: NivelRisco.VERDE
-    val riscoPeso = ClassificacaoPeso.fromDescricao(avaliacao.classificacaoPeso)?.nivelRisco ?: NivelRisco.VERDE
-
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -249,14 +243,14 @@ fun AvaliacaoTimelineCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatusBadge(
-                    texto = avaliacao.classificacaoEstatura,
-                    nivelRisco = riscoEstatura,
+                    texto = avaliacao.classificacaoEstatura.descricao,
+                    nivelRisco = avaliacao.classificacaoEstatura.nivelRisco,
                     modifier = Modifier.weight(1f)
                 )
 
                 StatusBadge(
-                    texto = avaliacao.classificacaoPeso,
-                    nivelRisco = riscoPeso,
+                    texto = avaliacao.classificacaoPeso.descricao,
+                    nivelRisco = avaliacao.classificacaoPeso.nivelRisco,
                     modifier = Modifier.weight(1f)
                 )
             }

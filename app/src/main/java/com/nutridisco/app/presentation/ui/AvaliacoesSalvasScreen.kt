@@ -50,9 +50,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nutridisco.app.R
 import com.nutridisco.app.data.local.model.AvaliacaoDetalhada
-import com.nutridisco.app.domain.model.ClassificacaoEstatura
-import com.nutridisco.app.domain.model.ClassificacaoPeso
-import com.nutridisco.app.domain.model.NivelRisco
 import com.nutridisco.app.presentation.avaliacoessalvas.AvaliacoesSalvasViewModel
 import com.nutridisco.app.presentation.components.StatusBadge
 import java.text.SimpleDateFormat
@@ -304,9 +301,6 @@ fun AvaliacoesSalvasScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(avaliacoes, key = { it.avaliacaoId }) { item ->
-                        val riscoEstatura = ClassificacaoEstatura.fromDescricao(item.classificacaoEstatura)?.nivelRisco ?: NivelRisco.VERDE
-                        val riscoPeso = ClassificacaoPeso.fromDescricao(item.classificacaoPeso)?.nivelRisco ?: NivelRisco.VERDE
-
                         Card(
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -373,14 +367,14 @@ fun AvaliacoesSalvasScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     StatusBadge(
-                                        texto = item.classificacaoEstatura,
-                                        nivelRisco = riscoEstatura,
+                                        texto = item.classificacaoEstatura.descricao,
+                                        nivelRisco = item.classificacaoEstatura.nivelRisco,
                                         modifier = Modifier.weight(1f)
                                     )
 
                                     StatusBadge(
-                                        texto = item.classificacaoPeso,
-                                        nivelRisco = riscoPeso,
+                                        texto = item.classificacaoPeso.descricao,
+                                        nivelRisco = item.classificacaoPeso.nivelRisco,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }

@@ -1,6 +1,8 @@
 package com.nutridisco.app.data.local.model
 
 import androidx.room.ColumnInfo
+import com.nutridisco.app.domain.model.ClassificacaoEstatura
+import com.nutridisco.app.domain.model.ClassificacaoPeso
 
 /**
  * Modelo de projeção para listagens completas e exportação CSV.
@@ -46,10 +48,10 @@ data class AvaliacaoDetalhada(
     val estatura: Double,
 
     @ColumnInfo(name = "classificacao_estatura")
-    val classificacaoEstatura: String,
+    val classificacaoEstatura: ClassificacaoEstatura,
 
     @ColumnInfo(name = "classificacao_peso")
-    val classificacaoPeso: String,
+    val classificacaoPeso: ClassificacaoPeso,
 
     @ColumnInfo(name = "observacoes")
     val observacoes: String?

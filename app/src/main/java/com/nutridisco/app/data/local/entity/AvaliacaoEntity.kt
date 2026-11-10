@@ -5,10 +5,15 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.nutridisco.app.domain.model.ClassificacaoEstatura
+import com.nutridisco.app.domain.model.ClassificacaoPeso
 
 /**
  * Representa uma avaliação antropométrica pontual.
  * Mantém snapshot do profissional e comunidade para auditoria e histórico inalterável.
+ *
+ * As classificações são gravadas pelo nome do enum (ex.: "BAIXA_ESTATURA"), não pelo texto
+ * exibido — assim mudar o texto de uma classificação não invalida avaliações antigas.
  */
 @Entity(
     tableName = "avaliacoes",
@@ -55,10 +60,10 @@ data class AvaliacaoEntity(
     val estatura: Double,
 
     @ColumnInfo(name = "classificacao_estatura")
-    val classificacaoEstatura: String,
+    val classificacaoEstatura: ClassificacaoEstatura,
 
     @ColumnInfo(name = "classificacao_peso")
-    val classificacaoPeso: String,
+    val classificacaoPeso: ClassificacaoPeso,
 
     @ColumnInfo(name = "observacoes")
     val observacoes: String? = null,

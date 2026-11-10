@@ -1,5 +1,7 @@
 package com.nutridisco.app.domain.export
 
+import com.nutridisco.app.domain.model.ClassificacaoEstatura
+import com.nutridisco.app.domain.model.ClassificacaoPeso
 import com.nutridisco.app.data.local.model.AvaliacaoDetalhada
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,8 +35,8 @@ class CsvExportManagerTest {
             idadeMesesMomento = 12,
             peso = 10.5,
             estatura = 75.2,
-            classificacaoEstatura = "Estatura adequada para a idade",
-            classificacaoPeso = "Peso adequado para a idade",
+            classificacaoEstatura = ClassificacaoEstatura.ESTATURA_ADEQUADA,
+            classificacaoPeso = ClassificacaoPeso.PESO_ADEQUADO,
             observacoes = "Criança ativa; sem sintomas"
         )
 

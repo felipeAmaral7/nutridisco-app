@@ -142,8 +142,8 @@ class NovaAvaliacaoViewModel @Inject constructor(
                         idadeMesesMomento = idadeMeses,
                         peso = peso,
                         estatura = estatura,
-                        classificacaoEstatura = resultado.classificacaoEstatura.descricao,
-                        classificacaoPeso = resultado.classificacaoPeso.descricao,
+                        classificacaoEstatura = resultado.classificacaoEstatura,
+                        classificacaoPeso = resultado.classificacaoPeso,
                         observacoes = state.observacoes.trim().ifEmpty { null },
                         nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
                         registroCoren = config?.registroCoren ?: "Não informado"

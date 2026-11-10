@@ -46,6 +46,6 @@ abstract class AppDatabase : RoomDatabase() {
          * 3. rode o build para gerar o novo JSON em app/schemas/ e faça commit dele.
          * O teste MigrationsTest falha se a migração ou o schema estiverem faltando.
          */
-        const val VERSION = 2
+        const val VERSION = 3
     }
 }

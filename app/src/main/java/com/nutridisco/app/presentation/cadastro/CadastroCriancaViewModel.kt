@@ -212,8 +212,8 @@ class CadastroCriancaViewModel @Inject constructor(
                         idadeMesesMomento = idadeMeses,
                         peso = peso,
                         estatura = estatura,
-                        classificacaoEstatura = resultado.classificacaoEstatura.descricao,
-                        classificacaoPeso = resultado.classificacaoPeso.descricao,
+                        classificacaoEstatura = resultado.classificacaoEstatura,
+                        classificacaoPeso = resultado.classificacaoPeso,
                         observacoes = "Criada a partir da Avaliação Rápida",
                         nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
                         registroCoren = config?.registroCoren ?: "Não informado"
