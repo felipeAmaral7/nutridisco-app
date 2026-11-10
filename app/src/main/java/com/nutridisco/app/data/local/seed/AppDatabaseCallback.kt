@@ -8,8 +8,12 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Callback do RoomDatabase para executar o script de Seed Data (seed_nutridisco.sql)
- * contendo Polos Base, Comunidades e a Tabela de Referências Antropométricas da OMS.
+ * Callback do RoomDatabase que carrega o Seed Data (seed_nutridisco.sql):
+ * Polos Base, Comunidades e a Tabela de Referências Antropométricas da OMS.
+ *
+ * O seed é idempotente: cada INSERT é executado como INSERT OR IGNORE, então pode ser
+ * reexecutado sobre um banco parcialmente preenchido sem violar chaves/índices únicos
+ * (ids fixos dos polos, comunidade única por polo, referência única por tipo/sexo/idade).
  */
 class AppDatabaseCallback(
     private val context: Context
@@ -22,55 +26,42 @@ class AppDatabaseCallback(
 
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
-        // Garante que se o banco já existia antes do seed ou após migração, os dados sejam injetados
-        executarSeedSeVazio(db)
+        // Recupera bancos com seed incompleto (ex.: falha anterior ou tabela esvaziada)
+        executarSeedSeIncompleto(db)
     }
 
-    private fun executarSeedSeVazio(db: SupportSQLiteDatabase) {
-        try {
-            val cursor = db.query("SELECT COUNT(*) FROM referencias_antropometricas")
-            val count = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-            cursor.close()
-
-            if (count == 0) {
-                executarSeed(db, "onOpen (banco sem dados)")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Erro ao verificar contagem de referências: ${e.message}", e)
+    private fun executarSeedSeIncompleto(db: SupportSQLiteDatabase) {
+        val tabelasVazias = TABELAS_SEED.filter { tabela -> contarLinhas(db, tabela) == 0 }
+        if (tabelasVazias.isNotEmpty()) {
+            executarSeed(db, "onOpen (tabelas vazias: ${tabelasVazias.joinToString()})")
         }
     }
 
+    private fun contarLinhas(db: SupportSQLiteDatabase, tabela: String): Int =
+        db.query("SELECT COUNT(*) FROM $tabela").use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+
     private fun executarSeed(db: SupportSQLiteDatabase, origem: String) {
         Log.i(TAG, "Iniciando execução do Seed Data a partir de $origem...")
+        val conteudo = context.assets.open(ASSET_FILE).use { input ->
+            BufferedReader(InputStreamReader(input, Charsets.UTF_8)).readText()
+        }
+        val statements = prepararStatements(conteudo)
+        Log.d(TAG, "Total de statements do seed: ${statements.size}")
+
+        val jaEmTransacao = db.inTransaction()
+        if (!jaEmTransacao) db.beginTransaction()
         try {
-            val statements = lerStatementsDoAsset(context, ASSET_FILE)
-            Log.d(TAG, "Total de statements lidos do asset: ${statements.size}")
-
-            val jaEmTransacao = db.inTransaction()
-            if (!jaEmTransacao) {
-                db.beginTransaction()
-            }
-
-            try {
-                for (statement in statements) {
-                    val trimmed = statement.trim()
-                    // Executa apenas os INSERTs, pois o Room já cria o schema DDL
-                    if (trimmed.startsWith("INSERT", ignoreCase = true)) {
-                        db.execSQL(trimmed)
-                    }
-                }
-                if (!jaEmTransacao) {
-                    db.setTransactionSuccessful()
-                }
-                Log.i(TAG, "Seed Data executado com sucesso no NutriDisco!")
-            } finally {
-                if (!jaEmTransacao) {
-                    db.endTransaction()
-                }
-            }
+            statements.forEach(db::execSQL)
+            if (!jaEmTransacao) db.setTransactionSuccessful()
+            Log.i(TAG, "Seed Data executado com sucesso no NutriDisco!")
         } catch (e: Exception) {
+            // Só chega aqui por erro real (asset ausente/corrompido), não por dados já existentes.
             Log.e(TAG, "Falha crítica ao executar o Seed Data: ${e.message}", e)
             throw e
+        } finally {
+            if (!jaEmTransacao) db.endTransaction()
         }
     }
 
@@ -78,24 +69,32 @@ class AppDatabaseCallback(
         private const val TAG = "NutriDiscoSeed"
         const val ASSET_FILE = "database/seed_nutridisco.sql"
 
-        fun lerStatementsDoAsset(context: Context, assetPath: String): List<String> {
-            val inputStream = context.assets.open(assetPath)
-            val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-            val sb = StringBuilder()
+        /** Tabelas preenchidas pelo seed; se qualquer uma estiver vazia, o seed é reexecutado. */
+        val TABELAS_SEED = listOf("polos_base", "comunidades", "referencias_antropometricas")
 
-            reader.forEachLine { line ->
-                val trimmed = line.trim()
-                // Ignora comentários de linha do SQL
-                if (!trimmed.startsWith("--")) {
-                    sb.append(line).append("\n")
+        /**
+         * Converte o conteúdo do arquivo de seed nos comandos a executar:
+         * remove comentários de linha, separa por ";", mantém só INSERTs e os torna
+         * INSERT OR IGNORE. Qualquer outro comando (CREATE, ALTER, DELETE...) é recusado,
+         * pois a estrutura do banco pertence ao Room e às Migrations.
+         */
+        fun prepararStatements(conteudo: String): List<String> =
+            separarStatements(conteudo).map { statement ->
+                require(REGEX_INSERT.containsMatchIn(statement)) {
+                    "O seed deve conter apenas INSERTs. Comando inválido: ${statement.take(60)}"
                 }
+                statement.replaceFirst(REGEX_INSERT, "INSERT OR IGNORE INTO")
             }
-            reader.close()
 
-            return sb.toString()
+        fun separarStatements(conteudo: String): List<String> =
+            conteudo.lineSequence()
+                .filterNot { it.trim().startsWith("--") }
+                .joinToString("\n")
                 .split(";")
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
-        }
+
+        /** "INSERT INTO" ou "INSERT OR IGNORE INTO" no início do comando. */
+        private val REGEX_INSERT = Regex("^INSERT\\s+(OR\\s+IGNORE\\s+)?INTO\\b", RegexOption.IGNORE_CASE)
     }
 }

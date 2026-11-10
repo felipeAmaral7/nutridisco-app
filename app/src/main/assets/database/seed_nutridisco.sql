@@ -1,65 +1,16 @@
 -- ==============================================================================
--- NUTRIDISCO - SCRIPT DE CRIAÇÃO DA BASE DE DADOS (DDL) E SEED COMPLETO
+-- NUTRIDISCO - DADOS INICIAIS (SEED)
 -- ==============================================================================
-
-CREATE TABLE polos_base (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    etnorregiao TEXT
-);
-
-CREATE TABLE comunidades (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    polo_base_id INTEGER NOT NULL,
-    nome TEXT NOT NULL,
-    FOREIGN KEY (polo_base_id) REFERENCES polos_base (id) ON DELETE CASCADE
-);
-
-CREATE TABLE configuracao_dispositivo (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    nome_profissional TEXT,
-    registro_coren TEXT,
-    polo_base_id_padrao INTEGER,
-    FOREIGN KEY (polo_base_id_padrao) REFERENCES polos_base (id)
-);
-
-CREATE TABLE criancas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    comunidade_id INTEGER NOT NULL,
-    nome TEXT NOT NULL,
-    sexo TEXT NOT NULL CHECK (sexo IN ('M', 'F')),
-    data_nascimento INTEGER NOT NULL,
-    nome_responsavel TEXT,
-    numero_cns TEXT,
-    FOREIGN KEY (comunidade_id) REFERENCES comunidades (id)
-);
-
-CREATE TABLE avaliacoes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    crianca_id INTEGER NOT NULL,
-    comunidade_atendimento_id INTEGER,
-    data_atendimento INTEGER NOT NULL,
-    idade_meses_momento INTEGER NOT NULL,
-    peso REAL,
-    estatura REAL,
-    classificacao_estatura TEXT,
-    classificacao_peso TEXT,
-    observacoes TEXT,
-    nome_profissional TEXT,
-    registro_coren TEXT,
-    FOREIGN KEY (crianca_id) REFERENCES criancas (id) ON DELETE CASCADE,
-    FOREIGN KEY (comunidade_atendimento_id) REFERENCES comunidades (id)
-);
-
-CREATE TABLE referencias_antropometricas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tipo_parametro TEXT NOT NULL CHECK (tipo_parametro IN ('PESO', 'ESTATURA')),
-    sexo TEXT NOT NULL CHECK (sexo IN ('M', 'F')),
-    idade_meses INTEGER NOT NULL,
-    escore_menos_3 REAL NOT NULL,
-    escore_menos_2 REAL NOT NULL,
-    escore_mais_2 REAL
-);
+-- Este arquivo contém APENAS dados (INSERTs). A estrutura das tabelas é definida
+-- pelas entidades do Room (data/local/entity) e versionada em app/schemas/.
+-- Não adicione CREATE/ALTER aqui: mudanças de estrutura exigem uma Migration.
+--
+-- Executado pelo AppDatabaseCallback na criação do banco e sempre que alguma
+-- tabela de seed estiver vazia. Cada INSERT roda como INSERT OR IGNORE, então
+-- reexecutar o arquivo é seguro: linhas já existentes são mantidas.
+--
+-- Formato: um comando por bloco, terminado em ";". Não use ";" dentro de textos.
+-- ==============================================================================
 
 -- ==============================================================================
 -- DADOS INICIAIS (SEED) - POLOS BASE E COMUNIDADES DO DSEI LESTE DE RORAIMA
