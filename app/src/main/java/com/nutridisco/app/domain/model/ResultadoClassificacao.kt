@@ -9,6 +9,6 @@ data class ResultadoClassificacao(
     val sexo: String,
     val classificacaoEstatura: ClassificacaoEstatura,
     val classificacaoPeso: ClassificacaoPeso,
-    val referenciaEstatura: ReferenciaAntropometricaEntity?,
-    val referenciaPeso: ReferenciaAntropometricaEntity?
+    val referenciaEstatura: ReferenciaAntropometricaEntity,
+    val referenciaPeso: ReferenciaAntropometricaEntity
 )

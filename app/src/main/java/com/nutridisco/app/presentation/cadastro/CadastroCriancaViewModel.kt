@@ -11,6 +11,7 @@ import com.nutridisco.app.domain.repository.ConfiguracaoRepository
 import com.nutridisco.app.domain.repository.CriancaRepository
 import com.nutridisco.app.domain.repository.TerritorioRepository
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
+import com.nutridisco.app.domain.usecase.ReferenciaNaoEncontradaException
 import com.nutridisco.app.domain.util.IdadeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -183,6 +184,11 @@ class CadastroCriancaViewModel @Inject constructor(
                 salvarDados(state, state.poloBaseId, dataNascTimestamp, dadosAvaliacaoPendente, onSucesso)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ReferenciaNaoEncontradaException) {
+                _uiState.value = _uiState.value.copy(
+                    salvando = false,
+                    erro = ReferenciaNaoEncontradaException.MENSAGEM_USUARIO
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(salvando = false, erro = ERRO_AO_SALVAR)
             }
@@ -207,6 +213,18 @@ class CadastroCriancaViewModel @Inject constructor(
             }
         }
 
+        // Classifica a avaliação pendente ANTES de gravar qualquer coisa: se faltar referência
+        // da OMS, nada é salvo (evita criança gravada sem a avaliação e cadastro duplicado).
+        val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(dataNascTimestamp)
+        val resultado = dadosAvaliacaoPendente?.let { (peso, estatura) ->
+            calcularClassificacaoUseCase(
+                idadeMeses = idadeMeses,
+                sexo = state.sexo,
+                peso = peso,
+                estatura = estatura
+            )
+        }
+
         // 1. Obter ou criar comunidade on-the-fly
         val comunidadeId = territorioRepository.obterOuCriarComunidade(
             poloBaseId = poloBaseId,
@@ -226,18 +244,8 @@ class CadastroCriancaViewModel @Inject constructor(
         )
 
         // 3. Se houver avaliação pendente (originada da Avaliação Rápida), salvar agora
-        if (dadosAvaliacaoPendente != null) {
+        if (resultado != null) {
             val config = configuracaoRepository.getConfiguracao()
-            val peso = dadosAvaliacaoPendente.first
-            val estatura = dadosAvaliacaoPendente.second
-            val idadeMeses = IdadeUtils.calcularIdadeEmMesesCompletos(dataNascTimestamp)
-
-            val resultado = calcularClassificacaoUseCase(
-                idadeMeses = idadeMeses,
-                sexo = state.sexo,
-                peso = peso,
-                estatura = estatura
-            )
 
             avaliacaoRepository.salvarAvaliacao(
                 AvaliacaoEntity(
@@ -245,8 +253,8 @@ class CadastroCriancaViewModel @Inject constructor(
                     comunidadeAtendimentoId = comunidadeId,
                     dataAtendimento = System.currentTimeMillis(),
                     idadeMesesMomento = idadeMeses,
-                    peso = peso,
-                    estatura = estatura,
+                    peso = resultado.peso,
+                    estatura = resultado.estatura,
                     classificacaoEstatura = resultado.classificacaoEstatura,
                     classificacaoPeso = resultado.classificacaoPeso,
                     observacoes = "Criada a partir da Avaliação Rápida",

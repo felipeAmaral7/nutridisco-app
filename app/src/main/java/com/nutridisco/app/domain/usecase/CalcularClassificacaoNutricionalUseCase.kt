@@ -16,6 +16,26 @@ class IdadeLimiteExcedidaException(val idadeMeses: Int) : IllegalArgumentExcepti
     "O NutriDisco é restrito ao acompanhamento de crianças de 0 a 59 meses completos (menores de 5 anos)."
 )
 
+/**
+ * Exceção lançada quando a tabela de referências antropométricas da OMS não possui dados
+ * cadastrados para a idade e sexo informados. Impede falso-negativo silencioso (classificar
+ * uma criança em risco como "adequada" por falta de parâmetro de comparação).
+ */
+class ReferenciaNaoEncontradaException(
+    val tipoParametro: String,
+    val sexo: String,
+    val idadeMeses: Int
+) : IllegalStateException(
+    "Tabela de referência antropométrica ($tipoParametro) não encontrada para $sexo de $idadeMeses meses. " +
+    "Não é possível classificar com segurança."
+) {
+    companion object {
+        /** Mensagem exibida ao profissional (sem detalhes técnicos). */
+        const val MENSAGEM_USUARIO =
+            "Tabela de referência antropométrica da OMS indisponível para esta idade e sexo. Não foi possível avaliar."
+    }
+}
+
 class CalcularClassificacaoNutricionalUseCase @Inject constructor(
     private val referenciaRepository: ReferenciaAntropometricaRepository
 ) {
@@ -40,25 +60,16 @@ class CalcularClassificacaoNutricionalUseCase @Inject constructor(
             tipoParametro = PARAM_ESTATURA,
             sexo = sexoNormalizado,
             idadeMeses = idadeMeses
-        )
+        ) ?: throw ReferenciaNaoEncontradaException(PARAM_ESTATURA, sexoNormalizado, idadeMeses)
 
         val refPeso = referenciaRepository.buscarReferencia(
             tipoParametro = PARAM_PESO,
             sexo = sexoNormalizado,
             idadeMeses = idadeMeses
-        )
+        ) ?: throw ReferenciaNaoEncontradaException(PARAM_PESO, sexoNormalizado, idadeMeses)
 
-        val classEstatura = if (refEstatura != null) {
-            classificarEstatura(estatura, refEstatura)
-        } else {
-            ClassificacaoEstatura.ESTATURA_ADEQUADA
-        }
-
-        val classPeso = if (refPeso != null) {
-            classificarPeso(peso, refPeso)
-        } else {
-            ClassificacaoPeso.PESO_ADEQUADO
-        }
+        val classEstatura = classificarEstatura(estatura, refEstatura)
+        val classPeso = classificarPeso(peso, refPeso)
 
         return ResultadoClassificacao(
             idadeMeses = idadeMeses,

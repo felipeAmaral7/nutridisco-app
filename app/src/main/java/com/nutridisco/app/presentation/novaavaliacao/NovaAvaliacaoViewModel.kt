@@ -10,8 +10,11 @@ import com.nutridisco.app.domain.repository.AvaliacaoRepository
 import com.nutridisco.app.domain.repository.ConfiguracaoRepository
 import com.nutridisco.app.domain.repository.CriancaRepository
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
+import com.nutridisco.app.domain.usecase.IdadeLimiteExcedidaException
+import com.nutridisco.app.domain.usecase.ReferenciaNaoEncontradaException
 import com.nutridisco.app.domain.util.IdadeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -91,8 +94,10 @@ class NovaAvaliacaoViewModel @Inject constructor(
                         estatura = estatura
                     )
                     _uiState.value = _uiState.value.copy(resultado = res, erro = null)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    _uiState.value = _uiState.value.copy(resultado = null, erro = e.message)
+                    _uiState.value = _uiState.value.copy(resultado = null, erro = mensagemDeErro(e, ERRO_AO_CALCULAR))
                 }
             }
         }
@@ -152,9 +157,23 @@ class NovaAvaliacaoViewModel @Inject constructor(
 
                 _uiState.value = state.copy(salvando = false)
                 onSucesso()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _uiState.value = state.copy(salvando = false, erro = e.message)
+                _uiState.value = state.copy(salvando = false, erro = mensagemDeErro(e, ERRO_AO_SALVAR))
             }
         }
+    }
+
+    /** Converte a exceção em texto para o profissional, sem expor mensagens técnicas. */
+    private fun mensagemDeErro(e: Exception, padrao: String): String = when (e) {
+        is ReferenciaNaoEncontradaException -> ReferenciaNaoEncontradaException.MENSAGEM_USUARIO
+        is IdadeLimiteExcedidaException -> e.message ?: padrao
+        else -> padrao
+    }
+
+    private companion object {
+        const val ERRO_AO_CALCULAR = "Erro ao calcular a classificação nutricional. Tente novamente."
+        const val ERRO_AO_SALVAR = "Não foi possível salvar a avaliação. Tente novamente."
     }
 }

@@ -7,18 +7,22 @@ import com.nutridisco.app.domain.model.NivelRisco
 import com.nutridisco.app.domain.repository.ReferenciaAntropometricaRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 
 class CalcularClassificacaoNutricionalUseCaseTest {
 
     private val fakeRepo = object : ReferenciaAntropometricaRepository {
+        var retornarEstatura: Boolean = true
+        var retornarPeso: Boolean = true
+
         override suspend fun buscarReferencia(
             tipoParametro: String,
             sexo: String,
             idadeMeses: Int
         ): ReferenciaAntropometricaEntity? {
-            return when (tipoParametro) {
-                "ESTATURA" -> ReferenciaAntropometricaEntity(
+            return when {
+                tipoParametro == "ESTATURA" && retornarEstatura -> ReferenciaAntropometricaEntity(
                     id = 1,
                     tipoParametro = "ESTATURA",
                     sexo = sexo,
@@ -27,7 +31,7 @@ class CalcularClassificacaoNutricionalUseCaseTest {
                     escoreMenos2 = 81.0,
                     escoreMais2 = 93.0
                 )
-                "PESO" -> ReferenciaAntropometricaEntity(
+                tipoParametro == "PESO" && retornarPeso -> ReferenciaAntropometricaEntity(
                     id = 2,
                     tipoParametro = "PESO",
                     sexo = sexo,
@@ -45,6 +49,12 @@ class CalcularClassificacaoNutricionalUseCaseTest {
     }
 
     private val useCase = CalcularClassificacaoNutricionalUseCase(fakeRepo)
+
+    @Before
+    fun setUp() {
+        fakeRepo.retornarEstatura = true
+        fakeRepo.retornarPeso = true
+    }
 
     @Test
     fun `classificarEstatura deve classificar muito baixa estatura quando abaixo de escore -3`() {
@@ -237,6 +247,30 @@ class CalcularClassificacaoNutricionalUseCaseTest {
             sexo = "M",
             peso = 3.5,
             estatura = 50.0
+        )
+        Unit
+    }
+
+    @Test(expected = ReferenciaNaoEncontradaException::class)
+    fun `invoke deve lancar ReferenciaNaoEncontradaException quando referencia de estatura nao existir`() = runBlocking {
+        fakeRepo.retornarEstatura = false
+        useCase(
+            idadeMeses = 24,
+            sexo = "M",
+            peso = 12.0,
+            estatura = 85.0
+        )
+        Unit
+    }
+
+    @Test(expected = ReferenciaNaoEncontradaException::class)
+    fun `invoke deve lancar ReferenciaNaoEncontradaException quando referencia de peso nao existir`() = runBlocking {
+        fakeRepo.retornarPeso = false
+        useCase(
+            idadeMeses = 24,
+            sexo = "M",
+            peso = 12.0,
+            estatura = 85.0
         )
         Unit
     }

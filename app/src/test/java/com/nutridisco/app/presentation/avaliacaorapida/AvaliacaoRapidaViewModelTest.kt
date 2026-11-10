@@ -28,6 +28,7 @@ class AvaliacaoRapidaViewModelTest {
 
     private val fakeRepo = object : ReferenciaAntropometricaRepository {
         var shouldThrow = false
+        var retornarNulo = false
 
         override suspend fun buscarReferencia(
             tipoParametro: String,
@@ -35,6 +36,7 @@ class AvaliacaoRapidaViewModelTest {
             idadeMeses: Int
         ): ReferenciaAntropometricaEntity? {
             if (shouldThrow) throw IllegalStateException("Erro simulado de banco")
+            if (retornarNulo) return null
             return when (tipoParametro) {
                 "ESTATURA" -> ReferenciaAntropometricaEntity(
                     id = 1,
@@ -69,6 +71,7 @@ class AvaliacaoRapidaViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeRepo.shouldThrow = false
+        fakeRepo.retornarNulo = false
         useCase = CalcularClassificacaoNutricionalUseCase(fakeRepo)
         viewModel = AvaliacaoRapidaViewModel(useCase)
     }
@@ -183,6 +186,21 @@ class AvaliacaoRapidaViewModelTest {
         assertFalse(state.calculando)
         assertNull(state.resultado)
         assertEquals(AvaliacaoRapidaViewModel.ERRO_INESPERADO, state.erro)
+    }
+
+    @Test
+    fun `calcular com referencia antropometrica ausente deve exibir erro clinico e cancelar resultado`() = runTest(testDispatcher) {
+        fakeRepo.retornarNulo = true
+        viewModel.onPesoChange("10.0")
+        viewModel.onEstaturaChange("80.0")
+
+        viewModel.calcular()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.calculando)
+        assertNull(state.resultado)
+        assertEquals(AvaliacaoRapidaViewModel.ERRO_REFERENCIA_INDISPONIVEL, state.erro)
     }
 
     @Test

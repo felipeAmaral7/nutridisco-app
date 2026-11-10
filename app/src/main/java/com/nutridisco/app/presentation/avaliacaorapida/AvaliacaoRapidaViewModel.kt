@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.nutridisco.app.domain.model.ResultadoClassificacao
 import com.nutridisco.app.domain.usecase.CalcularClassificacaoNutricionalUseCase
 import com.nutridisco.app.domain.usecase.IdadeLimiteExcedidaException
+import com.nutridisco.app.domain.usecase.ReferenciaNaoEncontradaException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,6 +110,14 @@ class AvaliacaoRapidaViewModel @Inject constructor(
                             "apenas crianças de 0 a 59 meses completos (menores de 5 anos)."
                     )
                 }
+            } catch (e: ReferenciaNaoEncontradaException) {
+                _uiState.update {
+                    it.copy(
+                        calculando = false,
+                        resultado = null,
+                        erro = ERRO_REFERENCIA_INDISPONIVEL
+                    )
+                }
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(calculando = false, resultado = null, erro = e.message) }
             } catch (e: Exception) {
@@ -143,6 +152,7 @@ class AvaliacaoRapidaViewModel @Inject constructor(
         const val ESTATURA_MAX_CM = 150.0
         const val ERRO_INESPERADO =
             "Erro ao calcular a classificação nutricional. Tente novamente."
+        const val ERRO_REFERENCIA_INDISPONIVEL = ReferenciaNaoEncontradaException.MENSAGEM_USUARIO
 
         private val REGEX_PESO = Regex("^\\d{0,3}(,\\d{0,3})?$")
         private val REGEX_ESTATURA = Regex("^\\d{0,3}(,\\d{0,2})?$")
