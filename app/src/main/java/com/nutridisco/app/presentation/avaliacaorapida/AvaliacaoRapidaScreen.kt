@@ -1,8 +1,8 @@
 package com.nutridisco.app.presentation.avaliacaorapida
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -37,7 +37,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -47,18 +46,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nutridisco.app.presentation.components.MascaraDataVisualTransformation
 import com.nutridisco.app.presentation.theme.StatusRed
-import com.nutridisco.app.presentation.ui.SexoOpcao
 
 private val VerdeTopBar = Color(0xFF26732B)
 private val VerdeBotao = Color(0xFF2D7A32)
 private val FundoBege = Color(0xFFF7F5EE)
 private val TextoPrimario = Color(0xFF1F1F1F)
 private val TextoSecundario = Color(0xFF6B6B6B)
-private val PontoInativo = Color(0xFFBDBDBD)
+
+enum class SexoOpcao(val valorDb: String, val label: String, val emoji: String) {
+    FEMININO("F", "Menina", "👧"),
+    MASCULINO("M", "Menino", "👦")
+}
 
 /**
- * Etapa 2 da avaliação: dados da criança (idade, peso e estatura).
- * O sexo vem da Etapa 1 (SelecaoSexoScreen) via argumento de navegação.
+ * Tela de Avaliação Nutricional unificada: sexo biológico, data de nascimento, peso e estatura.
+ * Permite alternar o sexo a qualquer momento sem perder os valores preenchidos.
  */
 @Composable
 fun AvaliacaoRapidaScreen(
@@ -78,26 +80,25 @@ fun AvaliacaoRapidaScreen(
     AvaliacaoRapidaConteudo(
         state = state,
         onVoltar = onVoltar,
+        onSexoChange = viewModel::onSexoChange,
         onDataNascimentoChange = viewModel::onDataNascimentoChange,
         onPesoChange = viewModel::onPesoChange,
         onEstaturaChange = viewModel::onEstaturaChange,
         onCalcular = viewModel::calcular,
     )
-
 }
 
 @Composable
 private fun AvaliacaoRapidaConteudo(
     state: AvaliacaoRapidaUiState,
     onVoltar: () -> Unit,
+    onSexoChange: (String) -> Unit,
     onDataNascimentoChange: (String) -> Unit,
     onPesoChange: (String) -> Unit,
     onEstaturaChange: (String) -> Unit,
     onCalcular: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val sexoOpcao = SexoOpcao.entries.firstOrNull { it.valorDb == state.sexo } ?: SexoOpcao.MASCULINO
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -106,7 +107,7 @@ private fun AvaliacaoRapidaConteudo(
             .navigationBarsPadding()
             .imePadding(),
     ) {
-        TopBarPilula(titulo = "Dados da criança", onVoltar = onVoltar)
+        TopBarPilula(titulo = "Nova Avaliação", onVoltar = onVoltar)
 
         Column(
             modifier = Modifier
@@ -114,10 +115,15 @@ private fun AvaliacaoRapidaConteudo(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            Spacer(Modifier.height(24.dp))
-            ChipSexo(emoji = sexoOpcao.emoji, label = sexoOpcao.label)
+            Spacer(Modifier.height(20.dp))
+            TituloCampo("Sexo biológico")
+            Spacer(Modifier.height(10.dp))
+            SeletorSexo(
+                sexoSelecionado = state.sexo,
+                onSexoSelecionado = onSexoChange,
+            )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(22.dp))
             TituloCampo("Data de nascimento")
             Spacer(Modifier.height(10.dp))
             CampoDataNascimento(
@@ -125,7 +131,8 @@ private fun AvaliacaoRapidaConteudo(
                 status = state.dataNascimentoStatus,
                 onChange = onDataNascimentoChange,
             )
-            Spacer(Modifier.height(24.dp))
+
+            Spacer(Modifier.height(22.dp))
             TituloCampo("Peso (kg)")
             Spacer(Modifier.height(10.dp))
             CampoNumerico(
@@ -135,7 +142,7 @@ private fun AvaliacaoRapidaConteudo(
                 sufixo = "kg",
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(22.dp))
             TituloCampo("Estatura (cm)")
             Spacer(Modifier.height(10.dp))
             CampoNumerico(
@@ -157,9 +164,6 @@ private fun AvaliacaoRapidaConteudo(
             Spacer(Modifier.height(24.dp))
         }
 
-        IndicadorEtapas(total = 2, atual = 1)
-        Spacer(Modifier.height(16.dp))
-
         Button(
             onClick = onCalcular,
             enabled = state.podeCalcular,
@@ -172,7 +176,7 @@ private fun AvaliacaoRapidaConteudo(
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
                 .height(52.dp),
         ) {
             if (state.calculando) {
@@ -182,10 +186,9 @@ private fun AvaliacaoRapidaConteudo(
                     modifier = Modifier.size(20.dp),
                 )
             } else {
-                Text("Calcular", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text("Calcular", fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
         }
-        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -224,19 +227,68 @@ private fun TopBarPilula(titulo: String, onVoltar: () -> Unit) {
 }
 
 @Composable
-private fun ChipSexo(emoji: String, label: String) {
+private fun SeletorSexo(
+    sexoSelecionado: String,
+    onSexoSelecionado: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        CardSexo(
+            label = "Menina",
+            emoji = "👧",
+            selecionado = sexoSelecionado == "F",
+            onClick = { onSexoSelecionado("F") },
+            modifier = Modifier.weight(1f),
+        )
+        CardSexo(
+            label = "Menino",
+            emoji = "👦",
+            selecionado = sexoSelecionado == "M",
+            onClick = { onSexoSelecionado("M") },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun CardSexo(
+    label: String,
+    emoji: String,
+    selecionado: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
-        color = Color.White,
-        shape = RoundedCornerShape(50),
-        shadowElevation = 2.dp,
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selecionado) Color.White else Color.White.copy(alpha = 0.65f),
+        border = BorderStroke(
+            width = if (selecionado) 2.dp else 1.dp,
+            color = if (selecionado) VerdeBotao else Color(0xFFDCD8CF),
+        ),
+        shadowElevation = if (selecionado) 3.dp else 1.dp,
+        modifier = modifier.height(72.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.Center,
         ) {
-            Text(text = emoji, fontSize = 20.sp)
-            Text(text = label, fontSize = 12.sp, color = TextoPrimario)
+            Text(
+                text = emoji,
+                fontSize = 30.sp,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = label,
+                fontSize = 15.sp,
+                fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
+                color = if (selecionado) VerdeBotao else TextoSecundario,
+            )
         }
     }
 }
@@ -327,26 +379,6 @@ private fun CampoNumerico(
     )
 }
 
-@Composable
-private fun IndicadorEtapas(total: Int, atual: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(total) { indice ->
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(
-                        color = if (indice == atual) TextoPrimario else PontoInativo,
-                    ),
-            )
-        }
-    }
-}
-
 @Preview(showBackground = true, widthDp = 360, heightDp = 780)
 @Composable
 private fun AvaliacaoRapidaScreenPreview() {
@@ -357,8 +389,10 @@ private fun AvaliacaoRapidaScreenPreview() {
                 dataNascimento = "10022025",
                 dataNascimentoStatus = DataNascimentoStatus.Valida(0L, 21, "1 ano e 9 meses"),
                 peso = "12,4",
+                estatura = "82,0",
             ),
             onVoltar = {},
+            onSexoChange = {},
             onDataNascimentoChange = {},
             onPesoChange = {},
             onEstaturaChange = {},

@@ -288,6 +288,29 @@ class AvaliacaoRapidaViewModelTest {
     }
 
     @Test
+    fun `alternar sexo na tela unica deve atualizar sexo preservando dados ja digitados`() {
+        viewModel.onDataNascimentoChange(DATA_24_MESES)
+        viewModel.onPesoChange("12,5")
+        viewModel.onEstaturaChange("85,0")
+
+        assertEquals("M", viewModel.uiState.value.sexo)
+
+        viewModel.onSexoChange("F")
+        assertEquals("F", viewModel.uiState.value.sexo)
+        assertEquals(DATA_24_MESES, viewModel.uiState.value.dataNascimento)
+        assertEquals("12,5", viewModel.uiState.value.peso)
+        assertEquals("85,0", viewModel.uiState.value.estatura)
+        assertTrue(viewModel.uiState.value.podeCalcular)
+
+        viewModel.onSexoChange("M")
+        assertEquals("M", viewModel.uiState.value.sexo)
+        assertEquals(DATA_24_MESES, viewModel.uiState.value.dataNascimento)
+        assertEquals("12,5", viewModel.uiState.value.peso)
+        assertEquals("85,0", viewModel.uiState.value.estatura)
+        assertTrue(viewModel.uiState.value.podeCalcular)
+    }
+
+    @Test
     fun `limpar deve redefinir o estado mantendo o sexo`() {
         viewModel.onSexoChange("F")
         viewModel.onDataNascimentoChange(DATA_24_MESES)

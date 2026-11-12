@@ -44,9 +44,6 @@ import com.nutridisco.app.presentation.salvarregistro.AvaliacaoPendente
 import com.nutridisco.app.presentation.salvarregistro.SalvarRegistroScreen
 import com.nutridisco.app.presentation.ui.AberturaScreen
 import com.nutridisco.app.presentation.ui.AvaliacoesSalvasScreen
-import com.nutridisco.app.presentation.ui.SelecaoSexoScreen
-
-private val ROTA_AVALIACAO_RAPIDA = "${Screen.AvaliacaoRapida.route}?sexo={sexo}"
 
 @Composable
 fun MainScreen(
@@ -60,13 +57,12 @@ fun MainScreen(
     // Abas principais que exibem a barra inferior
     val bottomNavItems = listOf(
         Screen.AvaliacoesSalvas to ("Início" to Icons.Default.Home),
-        Screen.SelecaoSexo to ("Avaliação" to Icons.Default.Calculate),
+        Screen.AvaliacaoRapida to ("Avaliação" to Icons.Default.Calculate),
         Screen.Exportacao to ("Exportar" to Icons.Default.FileDownload),
         Screen.Configuracao to ("Ajustes" to Icons.Default.Settings)
     )
 
-    val showBottomBar = (currentRoute in bottomNavItems.map { it.first.route } ||
-        currentRoute?.startsWith(Screen.AvaliacaoRapida.route) == true) &&
+    val showBottomBar = currentRoute in bottomNavItems.map { it.first.route } &&
         currentRoute != Screen.IdentificacaoInicial.route
 
     Scaffold(
@@ -75,8 +71,7 @@ fun MainScreen(
                 NavigationBar {
                     bottomNavItems.forEach { (screen, info) ->
                         val (label, icon) = info
-                        val isSelected = currentRoute == screen.route ||
-                            (screen == Screen.SelecaoSexo && currentRoute?.startsWith(Screen.AvaliacaoRapida.route) == true)
+                        val isSelected = currentRoute == screen.route
 
                         NavigationBarItem(
                             icon = { Icon(icon, contentDescription = label) },
@@ -139,7 +134,7 @@ fun MainScreen(
                 AvaliacoesSalvasScreen(
                     viewModel = viewModel,
                     onIniciarNovaAvaliacaoClick = {
-                        navController.navigate(Screen.SelecaoSexo.route)
+                        navController.navigate(Screen.AvaliacaoRapida.route)
                     },
                     onCriancaClick = { criancaId ->
                         navController.navigate(Screen.PerfilCrianca.createRoute(criancaId))
@@ -147,26 +142,8 @@ fun MainScreen(
                 )
             }
 
-            composable(Screen.SelecaoSexo.route) {
-                SelecaoSexoScreen(
-                    onVoltarClick = { navController.popBackStack() },
-                    onProximoClick = { sexoOpcao ->
-                        navController.navigate("${Screen.AvaliacaoRapida.route}?sexo=${sexoOpcao.valorDb}")
-                    }
-                )
-            }
-
-            composable(
-                route = ROTA_AVALIACAO_RAPIDA,
-                arguments = listOf(
-                    navArgument("sexo") { type = NavType.StringType; defaultValue = "M" }
-                )
-            ) { backStackEntry ->
-                val viewModel: AvaliacaoRapidaViewModel = hiltViewModel()
-                val sexo = backStackEntry.arguments?.getString("sexo") ?: "M"
-                LaunchedEffect(sexo) {
-                    viewModel.onSexoChange(sexo)
-                }
+            composable(Screen.AvaliacaoRapida.route) { backStackEntry ->
+                val viewModel: AvaliacaoRapidaViewModel = hiltViewModel(backStackEntry)
                 AvaliacaoRapidaScreen(
                     viewModel = viewModel,
                     onVoltar = { navController.popBackStack() },
@@ -177,15 +154,16 @@ fun MainScreen(
             composable(Screen.Resultado.route) { backStackEntry ->
                 // Compartilha o ViewModel da Avaliação Rápida, que já contém o resultado calculado.
                 val avaliacaoEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry(ROTA_AVALIACAO_RAPIDA)
+                    navController.getBackStackEntry(Screen.AvaliacaoRapida.route)
                 }
                 val viewModel: AvaliacaoRapidaViewModel = hiltViewModel(avaliacaoEntry)
                 ResultadoScreen(
                     viewModel = viewModel,
                     onVoltar = { navController.popBackStack() },
                     onNovaAvaliacao = {
-                        navController.navigate(Screen.SelecaoSexo.route) {
-                            popUpTo(Screen.SelecaoSexo.route) { inclusive = true }
+                        viewModel.limpar()
+                        navController.navigate(Screen.AvaliacaoRapida.route) {
+                            popUpTo(Screen.AvaliacaoRapida.route) { inclusive = true }
                         }
                     },
                     onSalvarRegistro = { res, dataNascimento ->

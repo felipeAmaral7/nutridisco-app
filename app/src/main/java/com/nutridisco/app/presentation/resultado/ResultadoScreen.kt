@@ -48,7 +48,7 @@ import com.nutridisco.app.domain.model.ClassificacaoPeso
 import com.nutridisco.app.domain.model.ResultadoClassificacao
 import com.nutridisco.app.domain.util.DataUtils
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaViewModel
-import com.nutridisco.app.presentation.ui.SexoOpcao
+import com.nutridisco.app.presentation.avaliacaorapida.SexoOpcao
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
