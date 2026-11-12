@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutridisco.app.data.local.entity.AvaliacaoEntity
 import com.nutridisco.app.data.local.entity.ComunidadeEntity
+import com.nutridisco.app.data.local.entity.ConfiguracaoDispositivoEntity
 import com.nutridisco.app.data.local.entity.CriancaEntity
 import com.nutridisco.app.data.local.entity.PoloBaseEntity
 import com.nutridisco.app.domain.repository.AvaliacaoRepository
@@ -121,7 +122,11 @@ class CadastroCriancaViewModel @Inject constructor(
     }
 
     fun onPoloBaseSelecionado(poloId: Long) {
-        _uiState.value = _uiState.value.copy(poloBaseId = poloId, erro = null)
+        _uiState.value = _uiState.value.copy(
+            poloBaseId = poloId,
+            poloBasePadraoAusente = false,
+            erro = null
+        )
     }
 
     fun onObservacoesChange(observacoes: String) {
@@ -247,7 +252,23 @@ class CadastroCriancaViewModel @Inject constructor(
 
         // 3. Se houver avaliação pendente (originada da Avaliação Rápida), salvar agora
         if (resultado != null) {
-            val config = configuracaoRepository.getConfiguracao()
+            val configAtual = configuracaoRepository.getConfiguracao()
+            val config = if (configAtual == null) {
+                val novaConfig = ConfiguracaoDispositivoEntity(
+                    id = 1L,
+                    nomeProfissional = "Profissional Local",
+                    registroCoren = "Não informado",
+                    poloBaseIdPadrao = poloBaseId
+                )
+                configuracaoRepository.salvarConfiguracao(novaConfig)
+                novaConfig
+            } else if (configAtual.poloBaseIdPadrao == null) {
+                val configAtualizada = configAtual.copy(poloBaseIdPadrao = poloBaseId)
+                configuracaoRepository.salvarConfiguracao(configAtualizada)
+                configAtualizada
+            } else {
+                configAtual
+            }
 
             avaliacaoRepository.salvarAvaliacao(
                 AvaliacaoEntity(
@@ -260,8 +281,8 @@ class CadastroCriancaViewModel @Inject constructor(
                     classificacaoEstatura = resultado.classificacaoEstatura,
                     classificacaoPeso = resultado.classificacaoPeso,
                     observacoes = state.observacoes.trim().ifEmpty { null },
-                    nomeProfissional = config?.nomeProfissional ?: "Profissional Local",
-                    registroCoren = config?.registroCoren ?: "Não informado"
+                    nomeProfissional = config.nomeProfissional,
+                    registroCoren = config.registroCoren
                 )
             )
         }
@@ -274,7 +295,7 @@ class CadastroCriancaViewModel @Inject constructor(
         const val CNS_TAMANHO = 15
         const val OBSERVACOES_MAX = 500
         const val ERRO_SEM_POLO_PADRAO =
-            "Defina o Polo Base padrão em Ajustes para salvar o registro."
+            "Selecione o Polo Base para salvar o registro."
         const val ERRO_AO_SALVAR = "Não foi possível salvar o cadastro. Tente novamente."
     }
 }

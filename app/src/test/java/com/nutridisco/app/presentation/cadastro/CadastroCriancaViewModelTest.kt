@@ -42,11 +42,15 @@ class CadastroCriancaViewModelTest {
     private val criancasSalvas = mutableListOf<CriancaEntity>()
     private val avaliacoesSalvas = mutableListOf<AvaliacaoEntity>()
     private val comunidadesCriadas = mutableListOf<Pair<Long, String>>()
+    private val configuracoesSalvas = mutableListOf<ConfiguracaoDispositivoEntity>()
 
     private val configuracaoRepo = object : ConfiguracaoRepository {
         override fun getConfiguracaoFlow(): Flow<ConfiguracaoDispositivoEntity?> = flowOf(configuracao)
         override suspend fun getConfiguracao() = configuracao
-        override suspend fun salvarConfiguracao(configuracao: ConfiguracaoDispositivoEntity) {}
+        override suspend fun salvarConfiguracao(configuracao: ConfiguracaoDispositivoEntity) {
+            this@CadastroCriancaViewModelTest.configuracao = configuracao
+            configuracoesSalvas += configuracao
+        }
     }
 
     private val criancaRepo = object : CriancaRepository {
@@ -186,6 +190,30 @@ class CadastroCriancaViewModelTest {
         assertEquals(CadastroCriancaViewModel.ERRO_SEM_POLO_PADRAO, viewModel.uiState.value.erro)
         assertTrue(criancasSalvas.isEmpty())
         assertTrue(avaliacoesSalvas.isEmpty())
+    }
+
+    @Test
+    fun `sem polo base padrao mas selecionando polo manualmente deve salvar com sucesso`() = runTest(testDispatcher) {
+        configuracao = configuracao?.copy(poloBaseIdPadrao = null)
+        val viewModel = criarViewModel()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.poloBasePadraoAusente)
+
+        viewModel.preencherFormulario()
+        viewModel.onPoloBaseSelecionado(8L)
+        assertFalse(viewModel.uiState.value.poloBasePadraoAusente)
+        assertEquals(8L, viewModel.uiState.value.poloBaseId)
+
+        var criancaId: Long? = null
+        viewModel.salvar(dadosAvaliacaoPendente = 10.5 to 80.0, onSucesso = { criancaId = it })
+        advanceUntilIdle()
+
+        assertEquals(1L, criancaId)
+        assertEquals(listOf(8L to "Maturuca"), comunidadesCriadas)
+        assertEquals(1, criancasSalvas.size)
+        assertEquals(1, avaliacoesSalvas.size)
+        // Deve persistir poloBaseIdPadrao para a configuracao
+        assertEquals(8L, configuracoesSalvas.last().poloBaseIdPadrao)
     }
 
     @Test

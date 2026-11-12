@@ -51,15 +51,15 @@ class ConfiguracaoViewModel @Inject constructor(
     }
 
     fun onNomeProfissionalChange(nome: String) {
-        _uiState.value = _uiState.value.copy(nomeProfissional = nome, erro = null)
+        _uiState.value = _uiState.value.copy(nomeProfissional = nome, salvoComSucesso = false, erro = null)
     }
 
     fun onRegistroCorenChange(coren: String) {
-        _uiState.value = _uiState.value.copy(registroCoren = coren, erro = null)
+        _uiState.value = _uiState.value.copy(registroCoren = coren, salvoComSucesso = false, erro = null)
     }
 
     fun onPoloBaseSelecionado(poloId: Long) {
-        _uiState.value = _uiState.value.copy(poloBaseIdPadrao = poloId, erro = null)
+        _uiState.value = _uiState.value.copy(poloBaseIdPadrao = poloId, salvoComSucesso = false, erro = null)
     }
 
     fun salvarConfiguracao(onSucesso: () -> Unit) {
@@ -72,6 +72,10 @@ class ConfiguracaoViewModel @Inject constructor(
             _uiState.value = state.copy(erro = "Informe o registro COREN")
             return
         }
+        if (state.poloBaseIdPadrao == null) {
+            _uiState.value = state.copy(erro = "Selecione o Polo Base padrão")
+            return
+        }
 
         viewModelScope.launch {
             configuracaoRepository.salvarConfiguracao(
@@ -82,7 +86,7 @@ class ConfiguracaoViewModel @Inject constructor(
                     poloBaseIdPadrao = state.poloBaseIdPadrao
                 )
             )
-            _uiState.value = state.copy(salvoComSucesso = true)
+            _uiState.value = state.copy(salvoComSucesso = true, erro = null)
             onSucesso()
         }
     }

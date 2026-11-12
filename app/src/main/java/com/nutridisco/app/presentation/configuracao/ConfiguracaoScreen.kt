@@ -1,7 +1,5 @@
 package com.nutridisco.app.presentation.configuracao
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -19,7 +19,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -43,7 +46,9 @@ import com.nutridisco.app.presentation.theme.StatusRed
 @Composable
 fun ConfiguracaoScreen(
     viewModel: ConfiguracaoViewModel,
-    onSalvo: () -> Unit
+    isInicial: Boolean = false,
+    onSalvo: () -> Unit,
+    onVoltar: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     val polos by viewModel.polosBase.collectAsState()
@@ -52,7 +57,23 @@ fun ConfiguracaoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configuração do Profissional", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = if (isInicial) "Identificação do Profissional" else "Configuração do Profissional",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    if (onVoltar != null) {
+                        IconButton(onClick = onVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = PrimaryGreen,
                     titleContentColor = Color.White
@@ -74,14 +95,18 @@ fun ConfiguracaoScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Identificação Local",
+                        text = if (isInicial) "Identificação Inicial" else "Identificação Local",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Como o NutriDisco opera 100% offline, esses dados serão gravados em cada atendimento para auditoria territorial.",
+                        text = if (isInicial) {
+                            "Bem-vindo ao NutriDisco! Como o aplicativo opera 100% offline, esses dados identificam seus atendimentos e definem o Polo Base padrão para as comunidades de atuação."
+                        } else {
+                            "Como o NutriDisco opera 100% offline, esses dados serão gravados em cada atendimento para auditoria territorial."
+                        },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -123,10 +148,10 @@ fun ConfiguracaoScreen(
                         value = poloSelecionado?.let { "${it.nome} (${it.etnorregiao})" } ?: "Selecione o Polo Base Padrão",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Polo Base Padrão") },
+                        label = { Text("Polo Base Padrão *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth()
                     )
 
@@ -157,6 +182,16 @@ fun ConfiguracaoScreen(
                 )
             }
 
+            if (state.salvoComSucesso && !isInicial) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "✓ Configuração salva com sucesso!",
+                    color = PrimaryGreen,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
@@ -167,7 +202,11 @@ fun ConfiguracaoScreen(
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                Text("Salvar Configuração", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = if (isInicial) "Concluir e Começar" else "Salvar Alterações",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

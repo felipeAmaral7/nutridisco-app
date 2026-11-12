@@ -28,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nutridisco.app.data.local.entity.ComunidadeEntity
+import com.nutridisco.app.data.local.entity.PoloBaseEntity
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaUiState
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaViewModel
 import com.nutridisco.app.presentation.theme.StatusRed
@@ -76,7 +78,7 @@ data class AvaliacaoPendente(val peso: Double, val estatura: Double)
 /**
  * Salva a criança e a avaliação calculada na Avaliação Rápida.
  * Sexo e data de nascimento já vêm da avaliação ([CadastroCriancaViewModel.preencherDadosDaAvaliacao]);
- * o Polo Base é o padrão definido em Ajustes.
+ * O Polo Base padrão definido em Ajustes vem selecionado, com opção de alteração direta.
  */
 @Composable
 fun SalvarRegistroScreen(
@@ -86,13 +88,16 @@ fun SalvarRegistroScreen(
     onSalvoComSucesso: (criancaId: Long) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    val polos by viewModel.polosBase.collectAsState()
     val comunidades by viewModel.comunidadesDoPolo.collectAsState()
 
     SalvarRegistroConteudo(
         state = state,
+        polos = polos,
         comunidades = comunidades,
         onVoltar = onVoltar,
         onNomeChange = viewModel::onNomeChange,
+        onPoloBaseChange = viewModel::onPoloBaseSelecionado,
         onComunidadeChange = viewModel::onComunidadeNomeChange,
         onResponsavelChange = viewModel::onNomeResponsavelChange,
         onCnsChange = viewModel::onNumeroCnsChange,
@@ -109,9 +114,11 @@ fun SalvarRegistroScreen(
 @Composable
 private fun SalvarRegistroConteudo(
     state: CadastroCriancaUiState,
+    polos: List<PoloBaseEntity>,
     comunidades: List<ComunidadeEntity>,
     onVoltar: () -> Unit,
     onNomeChange: (String) -> Unit,
+    onPoloBaseChange: (Long) -> Unit,
     onComunidadeChange: (String) -> Unit,
     onResponsavelChange: (String) -> Unit,
     onCnsChange: (String) -> Unit,
@@ -134,7 +141,7 @@ private fun SalvarRegistroConteudo(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp),
         ) {
-            if (state.poloBasePadraoAusente) {
+            if (state.poloBasePadraoAusente && state.poloBaseId == null) {
                 Spacer(Modifier.height(16.dp))
                 AvisoPoloBase()
             }
@@ -146,6 +153,14 @@ private fun SalvarRegistroConteudo(
                 onChange = onNomeChange,
                 placeholder = "Digite o nome",
                 capitalizacao = KeyboardCapitalization.Words,
+            )
+
+            Spacer(Modifier.height(18.dp))
+            Rotulo("Polo Base")
+            CampoPoloBase(
+                poloSelecionadoId = state.poloBaseId,
+                polos = polos,
+                onPoloSelecionado = onPoloBaseChange,
             )
 
             Spacer(Modifier.height(18.dp))
@@ -300,6 +315,54 @@ private fun CampoTexto(
     )
 }
 
+/** Campo de seleção do Polo Base com suporte a dropdown. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CampoPoloBase(
+    poloSelecionadoId: Long?,
+    polos: List<PoloBaseEntity>,
+    onPoloSelecionado: (Long) -> Unit,
+) {
+    var expandido by remember { mutableStateOf(false) }
+    val poloAtual = remember(poloSelecionadoId, polos) {
+        polos.firstOrNull { it.id == poloSelecionadoId }
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expandido,
+        onExpandedChange = { expandido = it },
+    ) {
+        TextField(
+            value = poloAtual?.let { "${it.nome} (${it.etnorregiao})" } ?: "",
+            onValueChange = {},
+            readOnly = true,
+            placeholder = { Text("Selecione o Polo Base", fontSize = 13.sp, color = TextoPlaceholder) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = coresCampo(),
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
+                .shadow(2.dp, RoundedCornerShape(12.dp)),
+        )
+        ExposedDropdownMenu(
+            expanded = expandido,
+            onDismissRequest = { expandido = false },
+        ) {
+            polos.forEach { polo ->
+                DropdownMenuItem(
+                    text = { Text("${polo.nome} (${polo.etnorregiao})") },
+                    onClick = {
+                        onPoloSelecionado(polo.id)
+                        expandido = false
+                    },
+                )
+            }
+        }
+    }
+}
+
 /** Campo de texto com sugestões das comunidades do Polo Base; um nome novo é criado ao salvar. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -390,7 +453,7 @@ private fun AvisoPoloBase() {
         ) {
             Icon(Icons.Outlined.Info, contentDescription = null, tint = AvisoTexto)
             Text(
-                text = CadastroCriancaViewModel.ERRO_SEM_POLO_PADRAO,
+                text = "Polo Base padrão não definido em Ajustes. Selecione o Polo Base abaixo para carregar as comunidades e continuar o registro.",
                 fontSize = 13.sp,
                 color = AvisoTexto,
             )
@@ -404,9 +467,11 @@ private fun SalvarRegistroScreenPreview() {
     MaterialTheme {
         SalvarRegistroConteudo(
             state = CadastroCriancaUiState(),
+            polos = emptyList(),
             comunidades = emptyList(),
             onVoltar = {},
             onNomeChange = {},
+            onPoloBaseChange = {},
             onComunidadeChange = {},
             onResponsavelChange = {},
             onCnsChange = {},

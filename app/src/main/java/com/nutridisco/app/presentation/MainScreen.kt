@@ -14,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -51,10 +52,13 @@ import com.nutridisco.app.presentation.ui.SelecaoSexoScreen
 private val ROTA_AVALIACAO_RAPIDA = "${Screen.AvaliacaoRapida.route}?sexo={sexo}"
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    mainViewModel: MainViewModel = hiltViewModel()
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val estaConfigurado by mainViewModel.estaConfigurado.collectAsState()
 
     // Abas principais que exibem a barra inferior
     val bottomNavItems = listOf(
@@ -65,8 +69,9 @@ fun MainScreen() {
         Screen.Configuracao to ("Ajustes" to Icons.Default.Settings)
     )
 
-    val showBottomBar = currentRoute in bottomNavItems.map { it.first.route } ||
-        currentRoute?.startsWith(Screen.AvaliacaoRapida.route) == true
+    val showBottomBar = (currentRoute in bottomNavItems.map { it.first.route } ||
+        currentRoute?.startsWith(Screen.AvaliacaoRapida.route) == true) &&
+        currentRoute != Screen.IdentificacaoInicial.route
 
     Scaffold(
         bottomBar = {
@@ -106,10 +111,30 @@ fun MainScreen() {
             composable(Screen.Abertura.route) {
                 AberturaScreen(
                     onIniciarAvaliacaoClick = {
-                        navController.navigate(Screen.AvaliacoesSalvas.route) {
-                            popUpTo(Screen.Abertura.route) { inclusive = true }
+                        if (estaConfigurado == true) {
+                            navController.navigate(Screen.AvaliacoesSalvas.route) {
+                                popUpTo(Screen.Abertura.route) { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate(Screen.IdentificacaoInicial.route) {
+                                popUpTo(Screen.Abertura.route) { inclusive = true }
+                            }
                         }
                     }
+                )
+            }
+
+            composable(Screen.IdentificacaoInicial.route) {
+                val viewModel: ConfiguracaoViewModel = hiltViewModel()
+                ConfiguracaoScreen(
+                    viewModel = viewModel,
+                    isInicial = true,
+                    onSalvo = {
+                        navController.navigate(Screen.AvaliacoesSalvas.route) {
+                            popUpTo(Screen.IdentificacaoInicial.route) { inclusive = true }
+                        }
+                    },
+                    onVoltar = { navController.popBackStack() }
                 )
             }
 
@@ -278,11 +303,8 @@ fun MainScreen() {
                 val viewModel: ConfiguracaoViewModel = hiltViewModel()
                 ConfiguracaoScreen(
                     viewModel = viewModel,
-                    onSalvo = {
-                        navController.navigate(Screen.SelecaoSexo.route) {
-                            popUpTo(Screen.Configuracao.route) { inclusive = true }
-                        }
-                    }
+                    isInicial = false,
+                    onSalvo = {}
                 )
             }
         }
