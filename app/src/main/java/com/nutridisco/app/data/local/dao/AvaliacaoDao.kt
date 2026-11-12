@@ -60,7 +60,9 @@ private const val SELECT_AVALIACAO_DETALHADA = """
         a.estatura AS estatura,
         a.classificacao_estatura AS classificacao_estatura,
         a.classificacao_peso AS classificacao_peso,
-        a.observacoes AS observacoes
+        a.observacoes AS observacoes,
+        c.nome_responsavel AS nome_responsavel,
+        c.numero_cns AS numero_cns
     FROM avaliacoes a
     INNER JOIN criancas c ON a.crianca_id = c.id
     INNER JOIN comunidades com ON a.comunidade_atendimento_id = com.id

@@ -3,6 +3,7 @@ package com.nutridisco.app.presentation.exportacao
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nutridisco.app.domain.export.CampoExportacao
 import com.nutridisco.app.domain.export.CsvExportManager
 import com.nutridisco.app.domain.export.PdfExportManager
 import com.nutridisco.app.domain.repository.AvaliacaoRepository
@@ -23,6 +24,8 @@ enum class FormatoExportacao(val rotulo: String, val extensao: String) {
 data class ExportacaoUiState(
     val exportando: Boolean = false,
     val formatoSelecionado: FormatoExportacao = FormatoExportacao.PDF,
+    val camposSelecionados: Set<CampoExportacao> = CampoExportacao.PADRAO,
+    val mostrarDialogCampos: Boolean = false,
     val mensagemSucesso: String? = null,
     val erro: String? = null
 )
@@ -44,9 +47,51 @@ class ExportacaoViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(formatoSelecionado = formato, erro = null, mensagemSucesso = null)
     }
 
-    fun exportar(formato: FormatoExportacao, context: Context) {
+    fun abrirDialogCampos() {
+        _uiState.value = _uiState.value.copy(mostrarDialogCampos = true, erro = null, mensagemSucesso = null)
+    }
+
+    fun fecharDialogCampos() {
+        _uiState.value = _uiState.value.copy(mostrarDialogCampos = false)
+    }
+
+    fun alternarCampo(campo: CampoExportacao) {
+        val atuais = _uiState.value.camposSelecionados
+        val novos = if (campo in atuais) atuais - campo else atuais + campo
+        _uiState.value = _uiState.value.copy(camposSelecionados = novos, erro = null)
+    }
+
+    fun selecionarTodosCampos() {
+        _uiState.value = _uiState.value.copy(camposSelecionados = CampoExportacao.PADRAO, erro = null)
+    }
+
+    fun desmarcarTodosCampos() {
+        _uiState.value = _uiState.value.copy(camposSelecionados = emptySet(), erro = null)
+    }
+
+    fun confirmarExportacao(context: Context) {
+        val state = _uiState.value
+        if (state.camposSelecionados.isEmpty()) {
+            _uiState.value = state.copy(erro = "Selecione ao menos um campo para incluir no relatório.")
+            return
+        }
+        fecharDialogCampos()
+        exportar(state.formatoSelecionado, state.camposSelecionados, context)
+    }
+
+    fun exportar(
+        formato: FormatoExportacao,
+        campos: Set<CampoExportacao> = _uiState.value.camposSelecionados,
+        context: Context
+    ) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(exportando = true, formatoSelecionado = formato, erro = null, mensagemSucesso = null)
+            _uiState.value = _uiState.value.copy(
+                exportando = true,
+                formatoSelecionado = formato,
+                camposSelecionados = campos,
+                erro = null,
+                mensagemSucesso = null
+            )
             try {
                 val lista = avaliacaoRepository.listarTodasParaExportacao()
                 if (lista.isEmpty()) {
@@ -59,7 +104,7 @@ class ExportacaoViewModel @Inject constructor(
 
                 when (formato) {
                     FormatoExportacao.PDF -> {
-                        val arquivoPdf = pdfExportManager.gerarPdfAvaliacoes(lista)
+                        val arquivoPdf = pdfExportManager.gerarPdfAvaliacoes(lista, campos)
                         val intent = pdfExportManager.criarIntentCompartilhamento(arquivoPdf)
                         context.startActivity(intent)
                         _uiState.value = _uiState.value.copy(
@@ -68,7 +113,7 @@ class ExportacaoViewModel @Inject constructor(
                         )
                     }
                     FormatoExportacao.CSV -> {
-                        val arquivoCsv = csvExportManager.gerarCsvAvaliacoes(lista)
+                        val arquivoCsv = csvExportManager.gerarCsvAvaliacoes(lista, campos)
                         val intent = csvExportManager.criarIntentCompartilhamento(arquivoCsv)
                         context.startActivity(intent)
                         _uiState.value = _uiState.value.copy(
@@ -87,6 +132,6 @@ class ExportacaoViewModel @Inject constructor(
     }
 
     fun exportarECompartilhar(context: Context) {
-        exportar(_uiState.value.formatoSelecionado, context)
+        abrirDialogCampos()
     }
 }

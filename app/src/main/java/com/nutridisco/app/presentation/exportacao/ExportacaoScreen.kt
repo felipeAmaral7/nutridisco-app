@@ -3,16 +3,18 @@ package com.nutridisco.app.presentation.exportacao
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +26,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,6 +37,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -46,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.nutridisco.app.domain.export.CampoExportacao
 import com.nutridisco.app.presentation.theme.PrimaryGreen
 import com.nutridisco.app.presentation.theme.StatusGreen
 import com.nutridisco.app.presentation.theme.StatusRed
@@ -58,6 +65,119 @@ fun ExportacaoScreen(
     val state by viewModel.uiState.collectAsState()
     val avaliacoes by viewModel.totalAvaliacoes.collectAsState()
     val context = LocalContext.current
+
+    // Caixa de diálogo para o usuário escolher quais informações deseja exportar
+    if (state.mostrarDialogCampos) {
+        Dialog(onDismissRequest = viewModel::fecharDialogCampos) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Campos do Relatório",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryGreen
+                        )
+                        TextButton(
+                            onClick = {
+                                if (state.camposSelecionados.size == CampoExportacao.entries.size) {
+                                    viewModel.desmarcarTodosCampos()
+                                } else {
+                                    viewModel.selecionarTodosCampos()
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = if (state.camposSelecionados.size == CampoExportacao.entries.size) "Desmarcar todos" else "Marcar todos",
+                                fontSize = 12.sp,
+                                color = PrimaryGreen,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Selecione as colunas a incluir no ${state.formatoSelecionado.extensao.uppercase()}:",
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B6B6B)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp)
+                    ) {
+                        items(CampoExportacao.entries) { campo ->
+                            val isChecked = campo in state.camposSelecionados
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.alternarCampo(campo) }
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { viewModel.alternarCampo(campo) },
+                                    colors = CheckboxDefaults.colors(checkedColor = PrimaryGreen)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = campo.rotulo,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isChecked) Color(0xFF1F1F1F) else Color(0xFF757575)
+                                    )
+                                    Text(
+                                        text = campo.descricao,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF9E9E9E)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = viewModel::fecharDialogCampos) {
+                            Text("Cancelar", color = Color(0xFF757575))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { viewModel.confirmarExportacao(context) },
+                            enabled = state.camposSelecionados.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "Exportar (${state.camposSelecionados.size})",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -200,7 +320,7 @@ fun ExportacaoScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             Button(
-                onClick = { viewModel.exportar(state.formatoSelecionado, context) },
+                onClick = viewModel::abrirDialogCampos,
                 enabled = !state.exportando && avaliacoes.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 shape = RoundedCornerShape(8.dp),

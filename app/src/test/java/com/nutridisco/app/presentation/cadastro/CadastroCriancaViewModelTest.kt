@@ -85,12 +85,14 @@ class CadastroCriancaViewModelTest {
     private val avaliacaoRepo = object : AvaliacaoRepository {
         override fun listarPorCrianca(criancaId: Long): Flow<List<AvaliacaoEntity>> = flowOf(emptyList())
         override fun buscarUltimaAvaliacao(criancaId: Long): Flow<AvaliacaoEntity?> = flowOf(null)
+        override suspend fun buscarPorId(id: Long): AvaliacaoEntity? = null
         override fun listarTodasDetalhadasFlow(): Flow<List<AvaliacaoDetalhada>> = flowOf(emptyList())
         override suspend fun listarTodasParaExportacao(): List<AvaliacaoDetalhada> = emptyList()
         override suspend fun salvarAvaliacao(avaliacao: AvaliacaoEntity): Long {
             avaliacoesSalvas += avaliacao
             return avaliacoesSalvas.size.toLong()
         }
+        override suspend fun atualizarAvaliacao(avaliacao: AvaliacaoEntity) {}
         override suspend fun deletarAvaliacao(avaliacao: AvaliacaoEntity) {}
     }
 

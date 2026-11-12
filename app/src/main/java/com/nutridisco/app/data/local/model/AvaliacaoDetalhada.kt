@@ -54,5 +54,11 @@ data class AvaliacaoDetalhada(
     val classificacaoPeso: ClassificacaoPeso,
 
     @ColumnInfo(name = "observacoes")
-    val observacoes: String?
+    val observacoes: String?,
+
+    @ColumnInfo(name = "nome_responsavel")
+    val nomeResponsavel: String = "",
+
+    @ColumnInfo(name = "numero_cns")
+    val numeroCns: String? = null
 )

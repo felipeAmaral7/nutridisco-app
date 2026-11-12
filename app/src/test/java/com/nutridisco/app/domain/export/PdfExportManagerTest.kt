@@ -36,4 +36,45 @@ class PdfExportManagerTest {
         assertEquals("B. Peso", PdfExportManager.resumirStatus("Baixo peso para a idade"))
         assertEquals("Elevado", PdfExportManager.resumirStatus("Peso elevado para a idade"))
     }
+
+    @Test
+    fun `calcularLargurasColunas deve preencher exatamente a largura util da pagina`() {
+        val campos = listOf(CampoExportacao.DATA_AVALIACAO, CampoExportacao.NOME_CRIANCA, CampoExportacao.RESPONSAVEL)
+        val larguras = PdfExportManager.calcularLargurasColunas(campos)
+
+        assertEquals(3, larguras.size)
+        val larguraUtil = PdfExportManager.PAGE_WIDTH - PdfExportManager.MARGIN_LEFT - PdfExportManager.MARGIN_RIGHT
+        assertEquals(larguraUtil, larguras.sum(), 0.01f)
+    }
+
+    @Test
+    fun `obterTextoFormatado deve formatar dados do item incluindo responsavel`() {
+        val item = com.nutridisco.app.data.local.model.AvaliacaoDetalhada(
+            avaliacaoId = 1L,
+            poloBaseNome = "Polo 1",
+            comunidadeNome = "Aldeia 1",
+            nomeProfissional = "Enf. Teste",
+            registroCoren = "123",
+            criancaId = 10L,
+            criancaNome = "Davi",
+            nomeResponsavel = "Maria Mae",
+            sexo = "M",
+            dataNascimento = 0L,
+            dataAtendimento = 1000L,
+            idadeMesesMomento = 10,
+            peso = 9.0,
+            estatura = 72.0,
+            classificacaoEstatura = com.nutridisco.app.domain.model.ClassificacaoEstatura.ESTATURA_ADEQUADA,
+            classificacaoPeso = com.nutridisco.app.domain.model.ClassificacaoPeso.PESO_ADEQUADO,
+            observacoes = null
+        )
+
+        val (textoResp, isBoldResp) = PdfExportManager.obterTextoFormatado(item, CampoExportacao.RESPONSAVEL)
+        assertEquals("Maria Mae", textoResp)
+        assertEquals(false, isBoldResp)
+
+        val (textoNome, isBoldNome) = PdfExportManager.obterTextoFormatado(item, CampoExportacao.NOME_CRIANCA)
+        assertEquals("Davi", textoNome)
+        assertEquals(true, isBoldNome)
+    }
 }

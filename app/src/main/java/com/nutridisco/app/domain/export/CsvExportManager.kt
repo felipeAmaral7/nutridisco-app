@@ -24,7 +24,10 @@ open class CsvExportManager @Inject constructor(
 
     private val fileDateFormat = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault())
 
-    open suspend fun gerarCsvAvaliacoes(avaliacoes: List<AvaliacaoDetalhada>): File =
+    open suspend fun gerarCsvAvaliacoes(
+        avaliacoes: List<AvaliacaoDetalhada>,
+        campos: Set<CampoExportacao> = CampoExportacao.PADRAO
+    ): File =
         withContext(Dispatchers.IO) {
             val exportDir = File(context.cacheDir, "exports")
             if (!exportDir.exists()) {
@@ -39,7 +42,7 @@ open class CsvExportManager @Inject constructor(
                 fos.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
 
                 OutputStreamWriter(fos, StandardCharsets.UTF_8).use { writer ->
-                    writer.write(gerarConteudoCsv(avaliacoes))
+                    writer.write(gerarConteudoCsv(avaliacoes, campos))
                 }
             }
 
@@ -72,46 +75,50 @@ open class CsvExportManager @Inject constructor(
         private val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         private val birthDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-        val CABECALHO = listOf(
-            "Polo Base",
-            "Comunidade",
-            "Profissional",
-            "COREN",
-            "ID Crianca",
-            "Nome Crianca",
-            "Sexo",
-            "Data Nascimento",
-            "Data Avaliacao",
-            "Idade (Meses)",
-            "Peso (kg)",
-            "Estatura (cm)",
-            "Classificacao Estatura",
-            "Classificacao Peso",
-            "Observacoes"
-        )
+        fun gerarConteudoCsv(
+            avaliacoes: List<AvaliacaoDetalhada>,
+            campos: Set<CampoExportacao> = CampoExportacao.PADRAO
+        ): String {
+            val camposAtivos = if (campos.isEmpty()) CampoExportacao.PADRAO else campos
+            val camposOrdenados = CampoExportacao.entries.filter { it in camposAtivos }
 
-        fun gerarConteudoCsv(avaliacoes: List<AvaliacaoDetalhada>): String {
+            val cabecalhoLista = mutableListOf<String>()
+            for (campo in camposOrdenados) {
+                campo.cabecalhoCsv.split(";").forEach { cabecalhoLista.add(it) }
+            }
+
             val sb = java.lang.StringBuilder()
-            sb.append(CABECALHO.joinToString(";") { escapeCsv(it) }).append("\n")
+            sb.append(cabecalhoLista.joinToString(";") { escapeCsv(it) }).append("\n")
 
             for (item in avaliacoes) {
-                val row = listOf(
-                    item.poloBaseNome,
-                    item.comunidadeNome,
-                    item.nomeProfissional,
-                    item.registroCoren,
-                    item.criancaId.toString(),
-                    item.criancaNome,
-                    item.sexo,
-                    birthDateFormat.format(Date(item.dataNascimento)),
-                    dateFormat.format(Date(item.dataAtendimento)),
-                    item.idadeMesesMomento.toString(),
-                    String.format(Locale.US, "%.2f", item.peso),
-                    String.format(Locale.US, "%.1f", item.estatura),
-                    item.classificacaoEstatura.descricao,
-                    item.classificacaoPeso.descricao,
-                    item.observacoes.orEmpty()
-                )
+                val row = mutableListOf<String>()
+                for (campo in camposOrdenados) {
+                    when (campo) {
+                        CampoExportacao.POLO_BASE -> row.add(item.poloBaseNome)
+                        CampoExportacao.COMUNIDADE -> row.add(item.comunidadeNome)
+                        CampoExportacao.PROFISSIONAL -> {
+                            row.add(item.nomeProfissional)
+                            row.add(item.registroCoren)
+                        }
+                        CampoExportacao.ID_CRIANCA -> row.add(item.criancaId.toString())
+                        CampoExportacao.NOME_CRIANCA -> row.add(item.criancaNome)
+                        CampoExportacao.SEXO -> row.add(item.sexo)
+                        CampoExportacao.DATA_NASCIMENTO -> row.add(birthDateFormat.format(Date(item.dataNascimento)))
+                        CampoExportacao.DATA_AVALIACAO -> row.add(dateFormat.format(Date(item.dataAtendimento)))
+                        CampoExportacao.IDADE_MESES -> row.add(item.idadeMesesMomento.toString())
+                        CampoExportacao.PESO -> {
+                            row.add(String.format(Locale.US, "%.2f", item.peso))
+                            row.add(item.classificacaoPeso.descricao)
+                        }
+                        CampoExportacao.ESTATURA -> {
+                            row.add(String.format(Locale.US, "%.1f", item.estatura))
+                            row.add(item.classificacaoEstatura.descricao)
+                        }
+                        CampoExportacao.RESPONSAVEL -> row.add(item.nomeResponsavel)
+                        CampoExportacao.CNS -> row.add(item.numeroCns.orEmpty())
+                        CampoExportacao.OBSERVACOES -> row.add(item.observacoes.orEmpty())
+                    }
+                }
                 sb.append(row.joinToString(";") { escapeCsv(it) }).append("\n")
             }
 

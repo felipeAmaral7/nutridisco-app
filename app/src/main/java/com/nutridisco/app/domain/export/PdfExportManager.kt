@@ -26,7 +26,10 @@ open class PdfExportManager @Inject constructor(
 
     private val fileDateFormat = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault())
 
-    open suspend fun gerarPdfAvaliacoes(avaliacoes: List<AvaliacaoDetalhada>): File =
+    open suspend fun gerarPdfAvaliacoes(
+        avaliacoes: List<AvaliacaoDetalhada>,
+        campos: Set<CampoExportacao> = CampoExportacao.PADRAO
+    ): File =
         withContext(Dispatchers.IO) {
             val exportDir = File(context.cacheDir, "exports")
             if (!exportDir.exists()) {
@@ -35,6 +38,11 @@ open class PdfExportManager @Inject constructor(
 
             val timestamp = fileDateFormat.format(Date())
             val file = File(exportDir, "nutridisco_relatorio_$timestamp.pdf")
+
+            val camposAtivos = if (campos.isEmpty()) CampoExportacao.PADRAO else campos
+            val camposOrdenados = CampoExportacao.entries.filter { it in camposAtivos }
+
+            val largurasColunas = calcularLargurasColunas(camposOrdenados)
 
             val document = PdfDocument()
             val totalPaginas = calcularTotalPaginas(avaliacoes.size)
@@ -55,7 +63,7 @@ open class PdfExportManager @Inject constructor(
                     currentY = desenharCabecalhoSecundario(canvas, paint, currentY)
                 }
 
-                currentY = desenharCabecalhoTabela(canvas, paint, currentY)
+                currentY = desenharCabecalhoTabela(canvas, paint, camposOrdenados, largurasColunas, currentY)
 
                 val limiteItens = if (numPagina == 1) ITENS_PAGINA_1 else ITENS_DEMAIS_PAGINAS
                 var itensDesenhadosNaPagina = 0
@@ -63,7 +71,7 @@ open class PdfExportManager @Inject constructor(
                 while (itemIndex < avaliacoes.size && itensDesenhadosNaPagina < limiteItens) {
                     val item = avaliacoes[itemIndex]
                     val isPar = itensDesenhadosNaPagina % 2 == 1
-                    currentY = desenharLinhaTabela(canvas, paint, item, currentY, isPar)
+                    currentY = desenharLinhaTabela(canvas, paint, item, camposOrdenados, largurasColunas, currentY, isPar)
                     itemIndex++
                     itensDesenhadosNaPagina++
                 }
@@ -167,6 +175,8 @@ open class PdfExportManager @Inject constructor(
     private fun desenharCabecalhoTabela(
         canvas: android.graphics.Canvas,
         paint: Paint,
+        campos: List<CampoExportacao>,
+        larguras: List<Float>,
         startY: Float
     ): Float {
         val rowHeight = 20f
@@ -175,14 +185,17 @@ open class PdfExportManager @Inject constructor(
 
         paint.color = COLOR_WHITE
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        paint.textSize = 8.5f
+        paint.textSize = 8f
 
-        canvas.drawText("DATA", COL_DATA, startY + 13f, paint)
-        canvas.drawText("CRIANÇA (SEXO)", COL_NOME, startY + 13f, paint)
-        canvas.drawText("IDADE", COL_IDADE, startY + 13f, paint)
-        canvas.drawText("COMUNIDADE / POLO", COL_COMUNIDADE, startY + 13f, paint)
-        canvas.drawText("PESO (KG)", COL_PESO, startY + 13f, paint)
-        canvas.drawText("ESTATURA (CM)", COL_ESTATURA, startY + 13f, paint)
+        var currentX = MARGIN_LEFT
+        for (i in campos.indices) {
+            val campo = campos[i]
+            val width = larguras[i]
+            val maxChars = (width / 5.0f).toInt().coerceAtLeast(3)
+            val headerText = truncarTexto(campo.cabecalhoPdf, maxChars)
+            canvas.drawText(headerText, currentX + 3f, startY + 13f, paint)
+            currentX += width
+        }
 
         return startY + rowHeight
     }
@@ -191,6 +204,8 @@ open class PdfExportManager @Inject constructor(
         canvas: android.graphics.Canvas,
         paint: Paint,
         item: AvaliacaoDetalhada,
+        campos: List<CampoExportacao>,
+        larguras: List<Float>,
         startY: Float,
         isPar: Boolean
     ): Float {
@@ -206,37 +221,22 @@ open class PdfExportManager @Inject constructor(
         paint.strokeWidth = 0.5f
         canvas.drawLine(MARGIN_LEFT, startY + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, startY + rowHeight, paint)
 
-        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-        paint.textSize = 8f
         paint.color = COLOR_TEXT_DARK
 
-        // 1. Data
-        val dataStr = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(item.dataAtendimento))
-        canvas.drawText(dataStr, COL_DATA, startY + 14f, paint)
+        var currentX = MARGIN_LEFT
+        for (i in campos.indices) {
+            val campo = campos[i]
+            val width = larguras[i]
+            val maxChars = (width / 4.8f).toInt().coerceAtLeast(3)
 
-        // 2. Criança (Sexo)
-        val sexoSigla = if (item.sexo.equals("F", ignoreCase = true)) "F" else "M"
-        val nomeFormatado = truncarTexto("${item.criancaNome} ($sexoSigla)", 22)
-        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText(nomeFormatado, COL_NOME, startY + 14f, paint)
+            val (texto, isBold) = obterTextoFormatado(item, campo)
+            paint.typeface = Typeface.create(Typeface.DEFAULT, if (isBold) Typeface.BOLD else Typeface.NORMAL)
+            paint.textSize = 8f
 
-        // 3. Idade
-        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-        canvas.drawText("${item.idadeMesesMomento} m", COL_IDADE, startY + 14f, paint)
-
-        // 4. Comunidade / Polo
-        val comFormatada = truncarTexto("${item.comunidadeNome} - ${item.poloBaseNome}", 22)
-        canvas.drawText(comFormatada, COL_COMUNIDADE, startY + 14f, paint)
-
-        // 5. Peso + Classificação
-        val pesoStr = String.format(Locale.US, "%.2f", item.peso).replace('.', ',')
-        val statusPesoCurto = resumirStatus(item.classificacaoPeso.descricao)
-        canvas.drawText("$pesoStr ($statusPesoCurto)", COL_PESO, startY + 14f, paint)
-
-        // 6. Estatura + Classificação
-        val estStr = String.format(Locale.US, "%.1f", item.estatura).replace('.', ',')
-        val statusEstCurto = resumirStatus(item.classificacaoEstatura.descricao)
-        canvas.drawText("$estStr ($statusEstCurto)", COL_ESTATURA, startY + 14f, paint)
+            val textoTruncado = truncarTexto(texto, maxChars)
+            canvas.drawText(textoTruncado, currentX + 3f, startY + 14f, paint)
+            currentX += width
+        }
 
         return startY + rowHeight
     }
@@ -272,14 +272,6 @@ open class PdfExportManager @Inject constructor(
         const val ITENS_PAGINA_1 = 23
         const val ITENS_DEMAIS_PAGINAS = 28
 
-        // Posições X das colunas
-        const val COL_DATA = 34f
-        const val COL_NOME = 86f
-        const val COL_IDADE = 224f
-        const val COL_COMUNIDADE = 260f
-        const val COL_PESO = 380f
-        const val COL_ESTATURA = 475f
-
         const val COLOR_PRIMARY = 0xFF26732B.toInt()
         const val COLOR_WHITE = 0xFFFFFFFF.toInt()
         const val COLOR_CARD_BG = 0xFFF4F0E8.toInt()
@@ -287,6 +279,13 @@ open class PdfExportManager @Inject constructor(
         const val COLOR_BORDER = 0xFFE0DCD2.toInt()
         const val COLOR_TEXT_DARK = 0xFF1F1F1F.toInt()
         const val COLOR_TEXT_MUTED = 0xFF757575.toInt()
+
+        fun calcularLargurasColunas(campos: List<CampoExportacao>): List<Float> {
+            if (campos.isEmpty()) return emptyList()
+            val totalPeso = campos.sumOf { it.pesoLarguraPdf.toDouble() }.toFloat()
+            val larguraUtil = (PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT)
+            return campos.map { (it.pesoLarguraPdf / totalPeso) * larguraUtil }
+        }
 
         fun calcularTotalPaginas(totalItens: Int): Int {
             if (totalItens <= 0) return 1
@@ -312,6 +311,33 @@ open class PdfExportManager @Inject constructor(
                 descricao.contains("Baixo peso", ignoreCase = true) -> "B. Peso"
                 descricao.contains("Elevado", ignoreCase = true) -> "Elevado"
                 else -> truncarTexto(descricao, 10)
+            }
+        }
+
+        fun obterTextoFormatado(item: AvaliacaoDetalhada, campo: CampoExportacao): Pair<String, Boolean> {
+            return when (campo) {
+                CampoExportacao.DATA_AVALIACAO -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(item.dataAtendimento)) to false
+                CampoExportacao.NOME_CRIANCA -> item.criancaNome to true
+                CampoExportacao.RESPONSAVEL -> item.nomeResponsavel to false
+                CampoExportacao.SEXO -> (if (item.sexo.equals("F", ignoreCase = true)) "F" else "M") to false
+                CampoExportacao.DATA_NASCIMENTO -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(item.dataNascimento)) to false
+                CampoExportacao.IDADE_MESES -> "${item.idadeMesesMomento} m" to false
+                CampoExportacao.COMUNIDADE -> item.comunidadeNome to false
+                CampoExportacao.POLO_BASE -> item.poloBaseNome to false
+                CampoExportacao.PESO -> {
+                    val pStr = String.format(Locale.US, "%.2f", item.peso).replace('.', ',')
+                    val st = resumirStatus(item.classificacaoPeso.descricao)
+                    "$pStr ($st)" to false
+                }
+                CampoExportacao.ESTATURA -> {
+                    val eStr = String.format(Locale.US, "%.1f", item.estatura).replace('.', ',')
+                    val st = resumirStatus(item.classificacaoEstatura.descricao)
+                    "$eStr ($st)" to false
+                }
+                CampoExportacao.PROFISSIONAL -> item.nomeProfissional to false
+                CampoExportacao.ID_CRIANCA -> item.criancaId.toString() to false
+                CampoExportacao.CNS -> (item.numeroCns ?: "-") to false
+                CampoExportacao.OBSERVACOES -> (item.observacoes ?: "-") to false
             }
         }
     }

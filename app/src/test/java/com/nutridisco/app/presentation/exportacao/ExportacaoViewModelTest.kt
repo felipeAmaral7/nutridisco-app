@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.nutridisco.app.data.local.entity.AvaliacaoEntity
 import com.nutridisco.app.data.local.model.AvaliacaoDetalhada
+import com.nutridisco.app.domain.export.CampoExportacao
 import com.nutridisco.app.domain.export.CsvExportManager
 import com.nutridisco.app.domain.export.PdfExportManager
 import com.nutridisco.app.domain.model.ClassificacaoEstatura
@@ -46,6 +47,7 @@ class ExportacaoViewModelTest {
 
     private var csvGerado = false
     private var pdfGerado = false
+    private var camposExportados: Set<CampoExportacao>? = null
 
     private val fakeContext = object : android.content.ContextWrapper(null) {
         override fun startActivity(intent: Intent?) {}
@@ -53,16 +55,24 @@ class ExportacaoViewModelTest {
     }
 
     private val fakeCsvManager = object : CsvExportManager(fakeContext) {
-        override suspend fun gerarCsvAvaliacoes(avaliacoes: List<AvaliacaoDetalhada>): File {
+        override suspend fun gerarCsvAvaliacoes(
+            avaliacoes: List<AvaliacaoDetalhada>,
+            campos: Set<CampoExportacao>
+        ): File {
             csvGerado = true
+            camposExportados = campos
             return File.createTempFile("teste", ".csv")
         }
         override fun criarIntentCompartilhamento(file: File): Intent = Intent()
     }
 
     private val fakePdfManager = object : PdfExportManager(fakeContext) {
-        override suspend fun gerarPdfAvaliacoes(avaliacoes: List<AvaliacaoDetalhada>): File {
+        override suspend fun gerarPdfAvaliacoes(
+            avaliacoes: List<AvaliacaoDetalhada>,
+            campos: Set<CampoExportacao>
+        ): File {
             pdfGerado = true
+            camposExportados = campos
             return File.createTempFile("teste", ".pdf")
         }
         override fun criarIntentCompartilhamento(file: File): Intent = Intent()
@@ -80,6 +90,7 @@ class ExportacaoViewModelTest {
         avaliacoesFlow.value = emptyList()
         csvGerado = false
         pdfGerado = false
+        camposExportados = null
     }
 
     @After
@@ -88,9 +99,11 @@ class ExportacaoViewModelTest {
     }
 
     @Test
-    fun `estado inicial deve ter PDF selecionado por padrao`() {
+    fun `estado inicial deve ter PDF e todos os campos selecionados por padrao`() {
         val viewModel = criarViewModel()
         assertEquals(FormatoExportacao.PDF, viewModel.uiState.value.formatoSelecionado)
+        assertEquals(CampoExportacao.PADRAO, viewModel.uiState.value.camposSelecionados)
+        assertFalse(viewModel.uiState.value.mostrarDialogCampos)
         assertFalse(viewModel.uiState.value.exportando)
         assertNull(viewModel.uiState.value.erro)
     }
@@ -106,9 +119,50 @@ class ExportacaoViewModelTest {
     }
 
     @Test
+    fun `abrir e fechar dialog de campos deve alterar estado mostrarDialogCampos`() {
+        val viewModel = criarViewModel()
+        assertFalse(viewModel.uiState.value.mostrarDialogCampos)
+
+        viewModel.abrirDialogCampos()
+        assertTrue(viewModel.uiState.value.mostrarDialogCampos)
+
+        viewModel.fecharDialogCampos()
+        assertFalse(viewModel.uiState.value.mostrarDialogCampos)
+    }
+
+    @Test
+    fun `alternarCampo e seletores em massa devem atualizar camposSelecionados`() {
+        val viewModel = criarViewModel()
+
+        viewModel.desmarcarTodosCampos()
+        assertTrue(viewModel.uiState.value.camposSelecionados.isEmpty())
+
+        viewModel.alternarCampo(CampoExportacao.RESPONSAVEL)
+        assertEquals(setOf(CampoExportacao.RESPONSAVEL), viewModel.uiState.value.camposSelecionados)
+
+        viewModel.alternarCampo(CampoExportacao.RESPONSAVEL)
+        assertTrue(viewModel.uiState.value.camposSelecionados.isEmpty())
+
+        viewModel.selecionarTodosCampos()
+        assertEquals(CampoExportacao.PADRAO, viewModel.uiState.value.camposSelecionados)
+    }
+
+    @Test
+    fun `confirmarExportacao sem campos selecionados deve bloquear e exibir erro`() {
+        val viewModel = criarViewModel()
+        viewModel.desmarcarTodosCampos()
+
+        viewModel.confirmarExportacao(fakeContext)
+
+        assertEquals("Selecione ao menos um campo para incluir no relatório.", viewModel.uiState.value.erro)
+        assertFalse(pdfGerado)
+        assertFalse(csvGerado)
+    }
+
+    @Test
     fun `exportar com lista vazia deve exibir erro`() = runTest(testDispatcher) {
         val viewModel = criarViewModel()
-        viewModel.exportar(FormatoExportacao.PDF, fakeContext)
+        viewModel.exportar(FormatoExportacao.PDF, CampoExportacao.PADRAO, fakeContext)
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.exportando)
@@ -118,7 +172,7 @@ class ExportacaoViewModelTest {
     }
 
     @Test
-    fun `exportar PDF com dados deve chamar PdfExportManager`() = runTest(testDispatcher) {
+    fun `exportar PDF com dados e campos customizados deve chamar PdfExportManager`() = runTest(testDispatcher) {
         avaliacoesFlow.value = listOf(
             AvaliacaoDetalhada(
                 avaliacaoId = 1L,
@@ -128,6 +182,7 @@ class ExportacaoViewModelTest {
                 registroCoren = "123",
                 criancaId = 10L,
                 criancaNome = "Davi",
+                nomeResponsavel = "Raoni",
                 sexo = "M",
                 dataNascimento = 0L,
                 dataAtendimento = 1000L,
@@ -140,18 +195,20 @@ class ExportacaoViewModelTest {
             )
         )
 
+        val campos = setOf(CampoExportacao.NOME_CRIANCA, CampoExportacao.RESPONSAVEL, CampoExportacao.PESO)
         val viewModel = criarViewModel()
-        viewModel.exportar(FormatoExportacao.PDF, fakeContext)
+        viewModel.exportar(FormatoExportacao.PDF, campos, fakeContext)
         advanceUntilIdle()
 
         assertTrue(pdfGerado)
         assertFalse(csvGerado)
+        assertEquals(campos, camposExportados)
         assertFalse(viewModel.uiState.value.exportando)
         assertTrue(viewModel.uiState.value.mensagemSucesso?.contains("PDF") == true)
     }
 
     @Test
-    fun `exportar CSV com dados deve chamar CsvExportManager`() = runTest(testDispatcher) {
+    fun `exportar CSV com dados e campos customizados deve chamar CsvExportManager`() = runTest(testDispatcher) {
         avaliacoesFlow.value = listOf(
             AvaliacaoDetalhada(
                 avaliacaoId = 1L,
@@ -161,6 +218,7 @@ class ExportacaoViewModelTest {
                 registroCoren = "123",
                 criancaId = 10L,
                 criancaNome = "Davi",
+                nomeResponsavel = "Raoni",
                 sexo = "M",
                 dataNascimento = 0L,
                 dataAtendimento = 1000L,
@@ -173,12 +231,14 @@ class ExportacaoViewModelTest {
             )
         )
 
+        val campos = setOf(CampoExportacao.NOME_CRIANCA, CampoExportacao.RESPONSAVEL, CampoExportacao.PESO)
         val viewModel = criarViewModel()
-        viewModel.exportar(FormatoExportacao.CSV, fakeContext)
+        viewModel.exportar(FormatoExportacao.CSV, campos, fakeContext)
         advanceUntilIdle()
 
         assertTrue(csvGerado)
         assertFalse(pdfGerado)
+        assertEquals(campos, camposExportados)
         assertFalse(viewModel.uiState.value.exportando)
         assertTrue(viewModel.uiState.value.mensagemSucesso?.contains("CSV") == true)
     }

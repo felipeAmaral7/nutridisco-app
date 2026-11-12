@@ -92,9 +92,11 @@ class PerfilCriancaViewModelTest {
     private val avaliacaoRepo = object : AvaliacaoRepository {
         override fun listarPorCrianca(criancaId: Long): Flow<List<AvaliacaoEntity>> = avaliacoesFlow
         override fun buscarUltimaAvaliacao(criancaId: Long): Flow<AvaliacaoEntity?> = throw NotImplementedError()
+        override suspend fun buscarPorId(id: Long): AvaliacaoEntity? = null
         override fun listarTodasDetalhadasFlow() = throw NotImplementedError()
         override suspend fun listarTodasParaExportacao() = emptyList<com.nutridisco.app.data.local.model.AvaliacaoDetalhada>()
         override suspend fun salvarAvaliacao(avaliacao: AvaliacaoEntity): Long = 1L
+        override suspend fun atualizarAvaliacao(avaliacao: AvaliacaoEntity) {}
         override suspend fun deletarAvaliacao(avaliacao: AvaliacaoEntity) {
             avaliacoesDeletadas += avaliacao
         }
