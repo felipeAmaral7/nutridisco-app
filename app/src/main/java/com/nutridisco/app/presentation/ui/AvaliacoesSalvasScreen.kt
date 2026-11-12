@@ -1,6 +1,7 @@
 package com.nutridisco.app.presentation.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,7 +43,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,15 +65,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Paleta extraída do protótipo
 private val CorFundoBege = Color(0xFFF7F5EE)
 private val CorVerdeBanner = Color(0xFF26732B)
 private val CorVerdeBotao = Color(0xFF2D7A32)
-private val CorTextoEscuro = Color(0xFF2C2C2C)
+private val CorTextoEscuro = Color(0xFF1F1F1F)
 private val CorTextoMudo = Color(0xFF757575)
 private val CorBordaDivisoria = Color(0xFFDCD8CF)
 private val CorCirculoVazio = Color(0xFFE8EEF5)
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AvaliacoesSalvasScreen(
     onIniciarNovaAvaliacaoClick: () -> Unit,
@@ -81,7 +85,20 @@ fun AvaliacoesSalvasScreen(
     val searchQuery by viewModel.termoBusca.collectAsState()
     val ordenacao by viewModel.ordenacao.collectAsState()
     val totalGeral by viewModel.totalGeral.collectAsState()
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
+
+    val listState = rememberLazyListState()
+
+    // Fração de encolhimento de 0f (totalmente expandido) a 1f (totalmente recolhido)
+    val collapseFraction by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset.toFloat() / 180f).coerceIn(0f, 1f)
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier
@@ -103,7 +120,7 @@ fun AvaliacoesSalvasScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                 ) {
                     Button(
                         onClick = onIniciarNovaAvaliacaoClick,
@@ -111,11 +128,11 @@ fun AvaliacoesSalvasScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(52.dp)
                     ) {
                         Text(
                             text = "Iniciar Nova Avaliação",
-                            fontSize = 18.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White
                         )
@@ -129,75 +146,149 @@ fun AvaliacoesSalvasScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 1. Banner Superior Institucional (#26732B)
-            Card(
-                shape = RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 0.dp),
-                colors = CardDefaults.cardColors(containerColor = CorVerdeBanner),
+            LazyColumn(
+                state = listState,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxSize()
+                    .weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
+                // 1. Banner Superior Retrátil (encolhe conforme o scroll)
+                item(key = "banner") {
+                    BannerSuperiorRetratil(collapseFraction = collapseFraction)
+                }
+
+                // 2. Cabeçalho da Seção com Contador
+                item(key = "contador") {
+                    Row(
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_personagem_abertura),
-                            contentDescription = "Avatar NutriDisco",
-                            modifier = Modifier.size(56.dp)
+                        Text(
+                            text = "Avaliações Salvas",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CorTextoEscuro
+                        )
+                        Text(
+                            text = if (searchQuery.isBlank()) "$totalGeral registros" else "${avaliacoes.size} de $totalGeral",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = CorTextoMudo
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "NutriDisco",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-
-                    Text(
-                        text = "Avaliação Nutricional Infantil",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color.White.copy(alpha = 0.9f)
+                // 3. Barra de Pesquisa e Ordenação (Doca no topo ao rolar para acesso rápido)
+                stickyHeader(key = "busca_ordenacao") {
+                    BarraPesquisaEOrdenacao(
+                        searchQuery = searchQuery,
+                        ordenacao = ordenacao,
+                        onTermoBuscaChange = viewModel::onTermoBuscaChange,
+                        onLimparBusca = viewModel::limparTermoBusca,
+                        onAlternarOrdenacao = viewModel::alternarOrdenacao
                     )
                 }
+
+                // 4. Conteúdo: Estado Vazio vs. Lista de Cards
+                if (avaliacoes.isEmpty()) {
+                    item(key = "vazio") {
+                        EstadoVazio(searchQuery = searchQuery)
+                    }
+                } else {
+                    items(avaliacoes, key = { it.avaliacaoId }) { item ->
+                        Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                            CardAvaliacao(
+                                item = item,
+                                onCriancaClick = onCriancaClick,
+                                dateFormat = dateFormat
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BannerSuperiorRetratil(collapseFraction: Float) {
+    val avatarBoxSize = (64 - (24 * collapseFraction)).dp
+    val avatarImgSize = (56 - (22 * collapseFraction)).dp
+    val titleSize = (22 - (5 * collapseFraction)).sp
+    val verticalPadding = (18 - (12 * collapseFraction)).dp
+    val subtitleAlpha = (1f - (collapseFraction * 2.0f)).coerceIn(0f, 1f)
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CorVerdeBanner),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = (8 - (6 * collapseFraction)).dp, bottom = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = verticalPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(avatarBoxSize)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.img_personagem_abertura),
+                    contentDescription = "Avatar NutriDisco",
+                    modifier = Modifier.size(avatarImgSize)
+                )
             }
 
-            // 2. Cabeçalho da Seção com Contador
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Spacer(modifier = Modifier.height((6 - (4 * collapseFraction)).dp))
+
+            Text(
+                text = "NutriDisco",
+                fontSize = titleSize,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+
+            if (subtitleAlpha > 0.05f) {
                 Text(
-                    text = "Avaliações Salvas",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CorTextoEscuro
-                )
-                Text(
-                    text = if (searchQuery.isBlank()) "$totalGeral registros" else "${avaliacoes.size} de $totalGeral",
+                    text = "Avaliação Nutricional Infantil",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Normal,
-                    color = CorTextoMudo
+                    color = Color.White.copy(alpha = 0.9f * subtitleAlpha)
                 )
             }
+        }
+    }
+}
 
-            // 3. Barra de Pesquisa Arredondada e Botão de Ordenação
+@Composable
+private fun BarraPesquisaEOrdenacao(
+    searchQuery: String,
+    ordenacao: TipoOrdenacao,
+    onTermoBuscaChange: (String) -> Unit,
+    onLimparBusca: () -> Unit,
+    onAlternarOrdenacao: () -> Unit
+) {
+    Surface(
+        color = CorFundoBege,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp)
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -207,7 +298,7 @@ fun AvaliacoesSalvasScreen(
             ) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = viewModel::onTermoBuscaChange,
+                    onValueChange = onTermoBuscaChange,
                     placeholder = {
                         Text(
                             text = "Buscar por nome ou comunidade...",
@@ -224,7 +315,7 @@ fun AvaliacoesSalvasScreen(
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = viewModel::limparTermoBusca) {
+                            IconButton(onClick = onLimparBusca) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
                                     contentDescription = "Limpar busca",
@@ -248,12 +339,12 @@ fun AvaliacoesSalvasScreen(
 
                 // Botão de alternância de ordenação (Mais recentes vs A-Z)
                 Surface(
-                    onClick = viewModel::alternarOrdenacao,
+                    onClick = onAlternarOrdenacao,
                     shape = RoundedCornerShape(12.dp),
-                    color = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao.copy(alpha = 0.12f) else Color.White,
+                    color = CorVerdeBotao.copy(alpha = 0.12f),
                     border = BorderStroke(
                         width = 1.dp,
-                        color = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao else CorBordaDivisoria
+                        color = CorVerdeBotao
                     ),
                     modifier = Modifier.size(54.dp)
                 ) {
@@ -261,14 +352,14 @@ fun AvaliacoesSalvasScreen(
                         Icon(
                             imageVector = if (ordenacao == TipoOrdenacao.RECENTES) Icons.Default.AccessTime else Icons.Default.SortByAlpha,
                             contentDescription = if (ordenacao == TipoOrdenacao.RECENTES) "Alternar para ordem alfabética (A–Z)" else "Alternar para mais recentes",
-                            tint = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao else CorTextoMudo,
+                            tint = CorVerdeBotao,
                             modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
 
-            // Indicador sutil de ordenação ativa
+            // Indicador de ordenação ativa (sempre verde)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -279,167 +370,164 @@ fun AvaliacoesSalvasScreen(
                 Text(
                     text = if (ordenacao == TipoOrdenacao.RECENTES) "Ordenando por: Mais recentes" else "Ordenando por: Nome da criança (A–Z)",
                     fontSize = 11.sp,
-                    color = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao else CorTextoMudo,
-                    fontWeight = if (ordenacao == TipoOrdenacao.ALFABETICA) FontWeight.Medium else FontWeight.Normal
+                    color = CorVerdeBotao,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EstadoVazio(searchQuery: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(CorCirculoVazio),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = null,
+                    tint = Color(0xFF6B7280),
+                    modifier = Modifier.size(38.dp)
                 )
             }
 
-            // 4. Conteúdo: Estado Vazio vs. Lista
-            if (avaliacoes.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(CorCirculoVazio),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Person,
-                                contentDescription = null,
-                                tint = Color(0xFF6B7280),
-                                modifier = Modifier.size(38.dp)
-                            )
-                        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-                        Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = if (searchQuery.isEmpty()) {
+                    "Nenhuma avaliação registrada"
+                } else {
+                    "Nenhum resultado para \"$searchQuery\""
+                },
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = CorTextoEscuro,
+                textAlign = TextAlign.Center
+            )
 
-                        Text(
-                            text = if (searchQuery.isEmpty()) {
-                                "Nenhuma avaliação registrada"
-                            } else {
-                                "Nenhum resultado para \"$searchQuery\""
-                            },
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = CorTextoEscuro,
-                            textAlign = TextAlign.Center
-                        )
+            Spacer(modifier = Modifier.height(6.dp))
 
-                        Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = if (searchQuery.isEmpty()) {
+                    "Inicie uma nova avaliação para começar"
+                } else {
+                    "Verifique o nome digitado ou limpe a busca"
+                },
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = CorTextoMudo,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
 
-                        Text(
-                            text = if (searchQuery.isEmpty()) {
-                                "Inicie uma nova avaliação para começar"
-                            } else {
-                                "Verifique o nome digitado ou limpe a busca"
-                            },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = CorTextoMudo,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(avaliacoes, key = { it.avaliacaoId }) { item ->
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onCriancaClick(item.criancaId) }
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = item.criancaNome,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = CorTextoEscuro
-                                    )
-                                    Text(
-                                        text = "${item.idadeMesesMomento} meses",
-                                        fontSize = 12.sp,
-                                        color = CorTextoMudo
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = "${item.comunidadeNome} • ${item.poloBaseNome}",
-                                    fontSize = 13.sp,
-                                    color = CorTextoMudo
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Text(
-                                        text = "Peso: ${item.peso} kg",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = CorTextoEscuro
-                                    )
-                                    Text(
-                                        text = "Estatura: ${item.estatura} cm",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = CorTextoEscuro
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    StatusBadge(
-                                        texto = item.classificacaoEstatura.descricao,
-                                        nivelRisco = item.classificacaoEstatura.nivelRisco,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    StatusBadge(
-                                        texto = item.classificacaoPeso.descricao,
-                                        nivelRisco = item.classificacaoPeso.nivelRisco,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = "${dateFormat.format(Date(item.dataAtendimento))} • Avaliador: ${item.nomeProfissional}",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF9E9E9E)
-                                )
-                            }
-                        }
-                    }
-                }
+@Composable
+private fun CardAvaliacao(
+    item: AvaliacaoDetalhada,
+    onCriancaClick: (Long) -> Unit,
+    dateFormat: SimpleDateFormat
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCriancaClick(item.criancaId) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.criancaNome,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = CorTextoEscuro
+                )
+                Text(
+                    text = "${item.idadeMesesMomento} meses",
+                    fontSize = 12.sp,
+                    color = CorTextoMudo
+                )
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "${item.comunidadeNome} • ${item.poloBaseNome}",
+                fontSize = 13.sp,
+                color = CorTextoMudo
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Peso: ${item.peso} kg",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = CorTextoEscuro
+                )
+                Text(
+                    text = "Estatura: ${item.estatura} cm",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = CorTextoEscuro
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatusBadge(
+                    texto = item.classificacaoEstatura.descricao,
+                    nivelRisco = item.classificacaoEstatura.nivelRisco,
+                    modifier = Modifier.weight(1f)
+                )
+
+                StatusBadge(
+                    texto = item.classificacaoPeso.descricao,
+                    nivelRisco = item.classificacaoPeso.nivelRisco,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "${dateFormat.format(Date(item.dataAtendimento))} • Avaliador: ${item.nomeProfissional}",
+                fontSize = 11.sp,
+                color = Color(0xFF9E9E9E)
+            )
         }
     }
 }
