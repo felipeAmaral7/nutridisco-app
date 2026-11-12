@@ -1,5 +1,6 @@
 package com.nutridisco.app.presentation.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,8 +22,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -51,6 +55,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.nutridisco.app.R
 import com.nutridisco.app.data.local.model.AvaliacaoDetalhada
 import com.nutridisco.app.presentation.avaliacoessalvas.AvaliacoesSalvasViewModel
+import com.nutridisco.app.presentation.avaliacoessalvas.TipoOrdenacao
 import com.nutridisco.app.presentation.components.StatusBadge
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -74,6 +79,7 @@ fun AvaliacoesSalvasScreen(
 ) {
     val avaliacoes by viewModel.avaliacoes.collectAsState()
     val searchQuery by viewModel.termoBusca.collectAsState()
+    val ordenacao by viewModel.ordenacao.collectAsState()
     val totalGeral by viewModel.totalGeral.collectAsState()
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
@@ -191,49 +197,92 @@ fun AvaliacoesSalvasScreen(
                 )
             }
 
-            // 3. Barra de Pesquisa Arredondada
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = viewModel::onTermoBuscaChange,
-                placeholder = {
-                    Text(
-                        text = "Buscar por nome ou comunidade...",
-                        color = CorTextoMudo,
-                        fontSize = 14.sp
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Buscar",
-                        tint = CorTextoMudo
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = viewModel::limparTermoBusca) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Limpar busca",
-                                tint = CorTextoMudo
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = CorVerdeBotao,
-                    unfocusedBorderColor = CorBordaDivisoria,
-                    focusedTextColor = CorTextoEscuro,
-                    unfocusedTextColor = CorTextoEscuro
-                ),
+            // 3. Barra de Pesquisa Arredondada e Botão de Ordenação
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 6.dp)
-            )
+                    .padding(horizontal = 24.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = viewModel::onTermoBuscaChange,
+                    placeholder = {
+                        Text(
+                            text = "Buscar por nome ou comunidade...",
+                            color = CorTextoMudo,
+                            fontSize = 14.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = CorTextoMudo
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = viewModel::limparTermoBusca) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Limpar busca",
+                                    tint = CorTextoMudo
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = CorVerdeBotao,
+                        unfocusedBorderColor = CorBordaDivisoria,
+                        focusedTextColor = CorTextoEscuro,
+                        unfocusedTextColor = CorTextoEscuro
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Botão de alternância de ordenação (Mais recentes vs A-Z)
+                Surface(
+                    onClick = viewModel::alternarOrdenacao,
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao.copy(alpha = 0.12f) else Color.White,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao else CorBordaDivisoria
+                    ),
+                    modifier = Modifier.size(54.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (ordenacao == TipoOrdenacao.RECENTES) Icons.Default.AccessTime else Icons.Default.SortByAlpha,
+                            contentDescription = if (ordenacao == TipoOrdenacao.RECENTES) "Alternar para ordem alfabética (A–Z)" else "Alternar para mais recentes",
+                            tint = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao else CorTextoMudo,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            // Indicador sutil de ordenação ativa
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 26.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (ordenacao == TipoOrdenacao.RECENTES) "Ordenando por: Mais recentes" else "Ordenando por: Nome da criança (A–Z)",
+                    fontSize = 11.sp,
+                    color = if (ordenacao == TipoOrdenacao.ALFABETICA) CorVerdeBotao else CorTextoMudo,
+                    fontWeight = if (ordenacao == TipoOrdenacao.ALFABETICA) FontWeight.Medium else FontWeight.Normal
+                )
+            }
 
             // 4. Conteúdo: Estado Vazio vs. Lista
             if (avaliacoes.isEmpty()) {

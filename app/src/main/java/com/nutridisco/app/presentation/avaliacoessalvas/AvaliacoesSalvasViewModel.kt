@@ -13,6 +13,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
+enum class TipoOrdenacao(val rotulo: String) {
+    RECENTES("Mais recentes"),
+    ALFABETICA("Ordem alfabética (A–Z)")
+}
+
 @HiltViewModel
 class AvaliacoesSalvasViewModel @Inject constructor(
     private val avaliacaoRepository: AvaliacaoRepository
@@ -21,13 +26,17 @@ class AvaliacoesSalvasViewModel @Inject constructor(
     private val _termoBusca = MutableStateFlow("")
     val termoBusca: StateFlow<String> = _termoBusca.asStateFlow()
 
+    private val _ordenacao = MutableStateFlow(TipoOrdenacao.RECENTES)
+    val ordenacao: StateFlow<TipoOrdenacao> = _ordenacao.asStateFlow()
+
     private val _todasAvaliacoes = avaliacaoRepository.listarTodasDetalhadasFlow()
 
     val avaliacoes: StateFlow<List<AvaliacaoDetalhada>> = combine(
         _todasAvaliacoes,
-        _termoBusca
-    ) { lista, termo ->
-        if (termo.isBlank()) {
+        _termoBusca,
+        _ordenacao
+    ) { lista, termo, ord ->
+        val filtrada = if (termo.isBlank()) {
             lista
         } else {
             lista.filter { item ->
@@ -35,6 +44,13 @@ class AvaliacoesSalvasViewModel @Inject constructor(
                 item.comunidadeNome.contains(termo, ignoreCase = true) ||
                 item.poloBaseNome.contains(termo, ignoreCase = true)
             }
+        }
+        when (ord) {
+            TipoOrdenacao.RECENTES -> filtrada.sortedByDescending { it.dataAtendimento }
+            TipoOrdenacao.ALFABETICA -> filtrada.sortedWith(
+                compareBy<AvaliacaoDetalhada, String>(String.CASE_INSENSITIVE_ORDER) { it.criancaNome }
+                    .thenByDescending { it.dataAtendimento }
+            )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -48,5 +64,17 @@ class AvaliacoesSalvasViewModel @Inject constructor(
 
     fun limparTermoBusca() {
         _termoBusca.value = ""
+    }
+
+    fun alternarOrdenacao() {
+        _ordenacao.value = if (_ordenacao.value == TipoOrdenacao.RECENTES) {
+            TipoOrdenacao.ALFABETICA
+        } else {
+            TipoOrdenacao.RECENTES
+        }
+    }
+
+    fun definirOrdenacao(tipo: TipoOrdenacao) {
+        _ordenacao.value = tipo
     }
 }
