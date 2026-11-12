@@ -21,6 +21,11 @@ class AvaliacaoRepositoryImpl @Inject constructor(
     override fun buscarUltimaAvaliacao(criancaId: Long): Flow<AvaliacaoEntity?> =
         dao.buscarUltimaAvaliacao(criancaId)
 
+    override suspend fun buscarPorId(id: Long): AvaliacaoEntity? =
+        withContext(ioDispatcher) {
+            dao.buscarPorId(id)
+        }
+
     override fun listarTodasDetalhadasFlow(): Flow<List<AvaliacaoDetalhada>> =
         dao.listarTodasDetalhadasFlow()
 
@@ -32,6 +37,11 @@ class AvaliacaoRepositoryImpl @Inject constructor(
     override suspend fun salvarAvaliacao(avaliacao: AvaliacaoEntity): Long =
         withContext(ioDispatcher) {
             dao.inserir(avaliacao)
+        }
+
+    override suspend fun atualizarAvaliacao(avaliacao: AvaliacaoEntity) =
+        withContext(ioDispatcher) {
+            dao.atualizar(avaliacao)
         }
 
     override suspend fun deletarAvaliacao(avaliacao: AvaliacaoEntity) =

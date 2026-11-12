@@ -7,8 +7,10 @@ import kotlinx.coroutines.flow.Flow
 interface AvaliacaoRepository {
     fun listarPorCrianca(criancaId: Long): Flow<List<AvaliacaoEntity>>
     fun buscarUltimaAvaliacao(criancaId: Long): Flow<AvaliacaoEntity?>
+    suspend fun buscarPorId(id: Long): AvaliacaoEntity?
     fun listarTodasDetalhadasFlow(): Flow<List<AvaliacaoDetalhada>>
     suspend fun listarTodasParaExportacao(): List<AvaliacaoDetalhada>
     suspend fun salvarAvaliacao(avaliacao: AvaliacaoEntity): Long
+    suspend fun atualizarAvaliacao(avaliacao: AvaliacaoEntity)
     suspend fun deletarAvaliacao(avaliacao: AvaliacaoEntity)
 }

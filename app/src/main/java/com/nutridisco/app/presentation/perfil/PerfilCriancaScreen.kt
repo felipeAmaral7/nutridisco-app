@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,7 +60,8 @@ fun PerfilCriancaScreen(
     viewModel: PerfilCriancaViewModel,
     onVoltar: () -> Unit,
     onNovaAvaliacaoClick: (Long) -> Unit,
-    onEditarClick: (Long) -> Unit
+    onEditarClick: (Long) -> Unit,
+    onEditarAvaliacaoClick: (Long) -> Unit
 ) {
     val crianca by viewModel.crianca.collectAsState()
     val avaliacoes by viewModel.avaliacoes.collectAsState()
@@ -259,6 +261,7 @@ fun PerfilCriancaScreen(
                         items(avaliacoes, key = { it.id }) { avaliacao ->
                             AvaliacaoTimelineCard(
                                 avaliacao = avaliacao,
+                                onEditar = { onEditarAvaliacaoClick(avaliacao.id) },
                                 onExcluir = { avaliacaoParaExcluir = avaliacao }
                             )
                         }
@@ -272,6 +275,7 @@ fun PerfilCriancaScreen(
 @Composable
 fun AvaliacaoTimelineCard(
     avaliacao: AvaliacaoEntity,
+    onEditar: () -> Unit,
     onExcluir: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
@@ -359,13 +363,23 @@ fun AvaliacaoTimelineCard(
                     color = MaterialTheme.colorScheme.outline
                 )
 
-                IconButton(onClick = onExcluir) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Excluir Avaliação",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(0.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onEditar) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Editar Avaliação",
+                            tint = PrimaryGreen,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(onClick = onExcluir) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Excluir Avaliação",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

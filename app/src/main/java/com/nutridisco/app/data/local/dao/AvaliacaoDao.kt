@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.nutridisco.app.data.local.entity.AvaliacaoEntity
 import com.nutridisco.app.data.local.model.AvaliacaoDetalhada
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,9 @@ interface AvaliacaoDao {
     @Query("SELECT * FROM avaliacoes WHERE crianca_id = :criancaId ORDER BY data_atendimento DESC LIMIT 1")
     fun buscarUltimaAvaliacao(criancaId: Long): Flow<AvaliacaoEntity?>
 
+    @Query("SELECT * FROM avaliacoes WHERE id = :id LIMIT 1")
+    suspend fun buscarPorId(id: Long): AvaliacaoEntity?
+
     @Query("$SELECT_AVALIACAO_DETALHADA ORDER BY a.data_atendimento DESC")
     fun listarTodasDetalhadasFlow(): Flow<List<AvaliacaoDetalhada>>
 
@@ -27,6 +31,9 @@ interface AvaliacaoDao {
     /** ABORT: inserir com um id já existente é erro de programação e não deve sobrescrever a avaliação. */
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun inserir(avaliacao: AvaliacaoEntity): Long
+
+    @Update
+    suspend fun atualizar(avaliacao: AvaliacaoEntity)
 
     @Delete
     suspend fun deletar(avaliacao: AvaliacaoEntity)

@@ -32,6 +32,8 @@ import com.nutridisco.app.presentation.cadastro.CadastroCriancaScreen
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaViewModel
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoScreen
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoViewModel
+import com.nutridisco.app.presentation.editaravaliacao.EditarAvaliacaoScreen
+import com.nutridisco.app.presentation.editaravaliacao.EditarAvaliacaoViewModel
 import com.nutridisco.app.presentation.editarcrianca.EditarCriancaScreen
 import com.nutridisco.app.presentation.editarcrianca.EditarCriancaViewModel
 import com.nutridisco.app.presentation.exportacao.ExportacaoScreen
@@ -242,7 +244,24 @@ fun MainScreen(
                     },
                     onEditarClick = { criancaId ->
                         navController.navigate(Screen.EditarCrianca.createRoute(criancaId))
+                    },
+                    onEditarAvaliacaoClick = { avaliacaoId ->
+                        navController.navigate(Screen.EditarAvaliacao.createRoute(avaliacaoId))
                     }
+                )
+            }
+
+            composable(
+                route = Screen.EditarAvaliacao.route,
+                arguments = listOf(
+                    navArgument("avaliacaoId") { type = NavType.LongType }
+                )
+            ) {
+                val viewModel: EditarAvaliacaoViewModel = hiltViewModel()
+                EditarAvaliacaoScreen(
+                    viewModel = viewModel,
+                    onVoltar = { navController.popBackStack() },
+                    onSalvoComSucesso = { navController.popBackStack() }
                 )
             }
 
