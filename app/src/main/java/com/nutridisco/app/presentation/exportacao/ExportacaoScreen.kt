@@ -1,18 +1,25 @@
 package com.nutridisco.app.presentation.exportacao
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -21,7 +28,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -31,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,20 +84,20 @@ fun ExportacaoScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Exportação de Relatório Tabular",
+                        text = "Relatórios e Prestação de Contas",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryGreen
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Gere um arquivo CSV compatível com Excel e SISVAN contendo todo o histórico de avaliações coletadas em campo.",
+                        text = "Exporte o histórico de atendimentos antropométricos coletados em campo no DSEI Leste de Roraima.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Você poderá transferir o relatório imediatamente via Bluetooth, WhatsApp, Google Drive ou e-mail.",
+                        text = "Operação 100% offline: transfira imediatamente via Bluetooth, WhatsApp, pendrive ou e-mail.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -101,20 +112,70 @@ fun ExportacaoScreen(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Status da Base Local",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Total de avaliações registradas: ${avaliacoes.size}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Base Local de Atendimentos",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${avaliacoes.size} avaliações prontas para exportar",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = PrimaryGreen.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = "${avaliacoes.size} reg.",
+                            color = PrimaryGreen,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Text(
+                text = "Formato de Exportação:",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            CardFormato(
+                titulo = "Relatório em PDF (.pdf)",
+                descricao = "Documento paginado e formatado. Ideal para impressão, arquivamento e visualização clínica.",
+                icone = Icons.Default.PictureAsPdf,
+                selecionado = state.formatoSelecionado == FormatoExportacao.PDF,
+                onClick = { viewModel.selecionarFormato(FormatoExportacao.PDF) }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            CardFormato(
+                titulo = "Planilha Tabular CSV (.csv)",
+                descricao = "Estrutura tabular com colunas separadas por ponto e vírgula. Compatível com Excel e SISVAN.",
+                icone = Icons.Default.TableChart,
+                selecionado = state.formatoSelecionado == FormatoExportacao.CSV,
+                onClick = { viewModel.selecionarFormato(FormatoExportacao.CSV) }
+            )
 
             state.mensagemSucesso?.let { msg ->
                 Spacer(modifier = Modifier.height(14.dp))
@@ -136,10 +197,10 @@ fun ExportacaoScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             Button(
-                onClick = { viewModel.exportarECompartilhar(context) },
+                onClick = { viewModel.exportar(state.formatoSelecionado, context) },
                 enabled = !state.exportando && avaliacoes.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 shape = RoundedCornerShape(8.dp),
@@ -148,13 +209,77 @@ fun ExportacaoScreen(
                     .height(52.dp)
             ) {
                 if (state.exportando) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.height(24.dp))
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                 } else {
                     Icon(Icons.Default.Share, contentDescription = null)
                     Spacer(modifier = Modifier.padding(horizontal = 4.dp))
-                    Text("Gerar e Compartilhar CSV", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Gerar e Compartilhar ${state.formatoSelecionado.extensao.uppercase()}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CardFormato(
+    titulo: String,
+    descricao: String,
+    icone: ImageVector,
+    selecionado: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            width = if (selecionado) 2.dp else 1.dp,
+            color = if (selecionado) PrimaryGreen else Color(0xFFE0DCD2)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (selecionado) 3.dp else 1.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icone,
+                contentDescription = null,
+                tint = if (selecionado) PrimaryGreen else Color.Gray,
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = titulo,
+                    fontSize = 15.sp,
+                    fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selecionado) PrimaryGreen else Color(0xFF1F1F1F)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = descricao,
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B6B6B),
+                    lineHeight = 16.sp
+                )
+            }
+
+            RadioButton(
+                selected = selecionado,
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(selectedColor = PrimaryGreen)
+            )
         }
     }
 }

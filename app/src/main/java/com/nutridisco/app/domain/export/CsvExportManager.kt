@@ -18,13 +18,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CsvExportManager @Inject constructor(
+open class CsvExportManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
     private val fileDateFormat = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault())
 
-    suspend fun gerarCsvAvaliacoes(avaliacoes: List<AvaliacaoDetalhada>): File =
+    open suspend fun gerarCsvAvaliacoes(avaliacoes: List<AvaliacaoDetalhada>): File =
         withContext(Dispatchers.IO) {
             val exportDir = File(context.cacheDir, "exports")
             if (!exportDir.exists()) {
@@ -46,7 +46,7 @@ class CsvExportManager @Inject constructor(
             file
         }
 
-    fun criarIntentCompartilhamento(file: File): Intent {
+    open fun criarIntentCompartilhamento(file: File): Intent {
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
