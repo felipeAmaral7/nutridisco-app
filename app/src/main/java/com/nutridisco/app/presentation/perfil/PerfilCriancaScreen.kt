@@ -99,17 +99,35 @@ fun PerfilCriancaScreen(
     if (avaliacaoParaExcluir != null) {
         val av = avaliacaoParaExcluir!!
         val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        val isUnicaAvaliacao = avaliacoes.size <= 1
+
         AlertDialog(
             onDismissRequest = { avaliacaoParaExcluir = null },
-            title = { Text("Excluir Avaliação", fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    text = if (isUnicaAvaliacao) "Excluir Única Avaliação" else "Excluir Avaliação",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Text("Tem certeza de que deseja apagar a avaliação realizada em ${dateFormat.format(Date(av.dataAtendimento))}? Esta ação não pode ser desfeita.")
+                Text(
+                    text = if (isUnicaAvaliacao) {
+                        "Esta é a única avaliação cadastrada para esta criança. Excluir este atendimento também removerá o cadastro de \"${crianca?.nome ?: "esta criança"}\". Deseja continuar?"
+                    } else {
+                        "Tem certeza de que deseja apagar a avaliação realizada em ${dateFormat.format(Date(av.dataAtendimento))}? Esta ação não pode ser desfeita."
+                    }
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.excluirAvaliacao(av)
+                        val toDelete = av
                         avaliacaoParaExcluir = null
+                        if (isUnicaAvaliacao) {
+                            viewModel.excluirCrianca(onSucesso = onVoltar)
+                        } else {
+                            viewModel.excluirAvaliacao(toDelete)
+                        }
                     }
                 ) {
                     Text("Excluir", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
