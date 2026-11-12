@@ -3,7 +3,6 @@ package com.nutridisco.app.presentation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -33,8 +32,6 @@ import com.nutridisco.app.presentation.cadastro.CadastroCriancaScreen
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaViewModel
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoScreen
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoViewModel
-import com.nutridisco.app.presentation.criancas.CriancasScreen
-import com.nutridisco.app.presentation.criancas.CriancasViewModel
 import com.nutridisco.app.presentation.exportacao.ExportacaoScreen
 import com.nutridisco.app.presentation.exportacao.ExportacaoViewModel
 import com.nutridisco.app.presentation.navigation.Screen
@@ -64,7 +61,6 @@ fun MainScreen(
     val bottomNavItems = listOf(
         Screen.AvaliacoesSalvas to ("Início" to Icons.Default.Home),
         Screen.SelecaoSexo to ("Avaliação" to Icons.Default.Calculate),
-        Screen.Criancas to ("Crianças" to Icons.Default.ChildCare),
         Screen.Exportacao to ("Exportar" to Icons.Default.FileDownload),
         Screen.Configuracao to ("Ajustes" to Icons.Default.Settings)
     )
@@ -200,19 +196,6 @@ fun MainScreen(
                 )
             }
 
-            composable(Screen.Criancas.route) {
-                val viewModel: CriancasViewModel = hiltViewModel()
-                CriancasScreen(
-                    viewModel = viewModel,
-                    onCriancaClick = { criancaId ->
-                        navController.navigate(Screen.PerfilCrianca.createRoute(criancaId))
-                    },
-                    onNovaCriancaClick = {
-                        navController.navigate(Screen.CadastroCrianca.route)
-                    }
-                )
-            }
-
             composable(Screen.CadastroCrianca.route) {
                 val viewModel: CadastroCriancaViewModel = hiltViewModel()
                 CadastroCriancaScreen(
@@ -220,7 +203,7 @@ fun MainScreen(
                     onVoltar = { navController.popBackStack() },
                     onSalvoComSucesso = { criancaId ->
                         navController.navigate(Screen.PerfilCrianca.createRoute(criancaId)) {
-                            popUpTo(Screen.Criancas.route)
+                            popUpTo(Screen.AvaliacoesSalvas.route)
                         }
                     }
                 )
