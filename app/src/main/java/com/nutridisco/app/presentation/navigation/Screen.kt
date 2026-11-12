@@ -16,6 +16,9 @@ sealed class Screen(val route: String) {
     object PerfilCrianca : Screen("perfil_crianca/{criancaId}") {
         fun createRoute(criancaId: Long) = "perfil_crianca/$criancaId"
     }
+    object EditarCrianca : Screen("editar_crianca/{criancaId}") {
+        fun createRoute(criancaId: Long) = "editar_crianca/$criancaId"
+    }
     object NovaAvaliacao : Screen("nova_avaliacao/{criancaId}") {
         fun createRoute(criancaId: Long) = "nova_avaliacao/$criancaId"
     }

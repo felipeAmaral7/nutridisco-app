@@ -18,6 +18,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -28,11 +30,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,10 +58,68 @@ import java.util.Locale
 fun PerfilCriancaScreen(
     viewModel: PerfilCriancaViewModel,
     onVoltar: () -> Unit,
-    onNovaAvaliacaoClick: (Long) -> Unit
+    onNovaAvaliacaoClick: (Long) -> Unit,
+    onEditarClick: (Long) -> Unit
 ) {
     val crianca by viewModel.crianca.collectAsState()
     val avaliacoes by viewModel.avaliacoes.collectAsState()
+
+    var avaliacaoParaExcluir by remember { mutableStateOf<AvaliacaoEntity?>(null) }
+    var mostrarDialogExcluirCrianca by remember { mutableStateOf(false) }
+
+    // Diálogo de confirmação para excluir o cadastro da criança
+    if (mostrarDialogExcluirCrianca && crianca != null) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogExcluirCrianca = false },
+            title = { Text("Excluir Cadastro", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Tem certeza de que deseja apagar o cadastro de \"${crianca!!.nome}\"? Todas as avaliações registradas desta criança também serão excluídas permanentemente.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mostrarDialogExcluirCrianca = false
+                        viewModel.excluirCrianca(onSucesso = onVoltar)
+                    }
+                ) {
+                    Text("Excluir", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogExcluirCrianca = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Diálogo de confirmação para excluir uma avaliação individual
+    if (avaliacaoParaExcluir != null) {
+        val av = avaliacaoParaExcluir!!
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        AlertDialog(
+            onDismissRequest = { avaliacaoParaExcluir = null },
+            title = { Text("Excluir Avaliação", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Tem certeza de que deseja apagar a avaliação realizada em ${dateFormat.format(Date(av.dataAtendimento))}? Esta ação não pode ser desfeita.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.excluirAvaliacao(av)
+                        avaliacaoParaExcluir = null
+                    }
+                ) {
+                    Text("Excluir", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { avaliacaoParaExcluir = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -64,6 +128,24 @@ fun PerfilCriancaScreen(
                 navigationIcon = {
                     IconButton(onClick = onVoltar) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                    }
+                },
+                actions = {
+                    if (crianca != null) {
+                        IconButton(onClick = { onEditarClick(crianca!!.id) }) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Editar Cadastro",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = { mostrarDialogExcluirCrianca = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Excluir Criança",
+                                tint = Color.White
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -177,7 +259,7 @@ fun PerfilCriancaScreen(
                         items(avaliacoes, key = { it.id }) { avaliacao ->
                             AvaliacaoTimelineCard(
                                 avaliacao = avaliacao,
-                                onExcluir = { viewModel.excluirAvaliacao(avaliacao) }
+                                onExcluir = { avaliacaoParaExcluir = avaliacao }
                             )
                         }
                     }

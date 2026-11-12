@@ -36,4 +36,14 @@ class PerfilCriancaViewModel @Inject constructor(
             avaliacaoRepository.deletarAvaliacao(avaliacao)
         }
     }
+
+    fun excluirCrianca(onSucesso: () -> Unit) {
+        viewModelScope.launch {
+            val c = criancaRepository.buscarCriancaPorId(criancaId)
+            if (c != null) {
+                criancaRepository.deletarCrianca(c)
+                onSucesso()
+            }
+        }
+    }
 }
