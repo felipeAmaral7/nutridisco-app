@@ -130,7 +130,7 @@ fun MainScreen(
                             popUpTo(Screen.IdentificacaoInicial.route) { inclusive = true }
                         }
                     },
-                    onVoltar = { navController.popBackStack() }
+                    onVoltar = null
                 )
             }
 
