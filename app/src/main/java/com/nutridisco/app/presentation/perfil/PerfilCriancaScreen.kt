@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,11 +32,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,10 +49,13 @@ import androidx.compose.ui.unit.sp
 import com.nutridisco.app.data.local.entity.AvaliacaoEntity
 import com.nutridisco.app.domain.util.IdadeUtils
 import com.nutridisco.app.presentation.components.StatusBadge
+import com.nutridisco.app.presentation.components.TopBarPilula
 import com.nutridisco.app.presentation.theme.PrimaryGreen
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private val CorFundoBege = Color(0xFFF7F5EE)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,45 +144,42 @@ fun PerfilCriancaScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(crianca?.nome ?: "Perfil da Criança", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onVoltar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CorFundoBege)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
+        TopBarPilula(
+            titulo = crianca?.nome ?: "Perfil da Criança",
+            onVoltar = onVoltar,
+            acoes = {
+                if (crianca != null) {
+                    IconButton(onClick = { onEditarClick(crianca!!.id) }) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Editar Cadastro",
+                            tint = Color.White
+                        )
                     }
-                },
-                actions = {
-                    if (crianca != null) {
-                        IconButton(onClick = { onEditarClick(crianca!!.id) }) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = "Editar Cadastro",
-                                tint = Color.White
-                            )
-                        }
-                        IconButton(onClick = { mostrarDialogExcluirCrianca = true }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Excluir Criança",
-                                tint = Color.White
-                            )
-                        }
+                    IconButton(onClick = { mostrarDialogExcluirCrianca = true }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Excluir Criança",
+                            tint = Color.White
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PrimaryGreen,
-                    titleContentColor = Color.White
-                )
-            )
-        }
-    ) { paddingValues ->
+                }
+            }
+        )
+
         if (crianca == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Carregando perfil...")
@@ -189,8 +189,8 @@ fun PerfilCriancaScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp)
+                    .weight(1f)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 // Header com dados cadastrais
                 Card(

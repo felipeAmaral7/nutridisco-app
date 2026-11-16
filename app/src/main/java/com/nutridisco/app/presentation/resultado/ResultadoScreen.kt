@@ -48,6 +48,7 @@ import com.nutridisco.app.domain.model.ClassificacaoPeso
 import com.nutridisco.app.domain.model.ResultadoClassificacao
 import com.nutridisco.app.domain.util.DataUtils
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaViewModel
+import com.nutridisco.app.presentation.components.TopBarPilula
 import com.nutridisco.app.presentation.avaliacaorapida.SexoOpcao
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -169,9 +170,10 @@ private fun ResultadoConteudo(
         modifier = Modifier
             .fillMaxSize()
             .background(FundoBege)
+            .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        TopBarResultado(onVoltar = onVoltar)
+        TopBarPilula(titulo = "Resultado", onVoltar = onVoltar)
 
         Column(
             modifier = Modifier
@@ -206,39 +208,6 @@ private fun ResultadoConteudo(
         }
 
         RodapeAcoes(onNovaAvaliacao = onNovaAvaliacao, onSalvarRegistro = onSalvarRegistro)
-    }
-}
-
-@Composable
-private fun TopBarResultado(onVoltar: () -> Unit) {
-    Surface(
-        color = VerdeTopBar,
-        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .statusBarsPadding()
-                .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onVoltar) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Voltar",
-                    tint = Color.White,
-                )
-            }
-            Text(
-                text = "Resultado",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(start = 16.dp),
-            )
-        }
     }
 }
 

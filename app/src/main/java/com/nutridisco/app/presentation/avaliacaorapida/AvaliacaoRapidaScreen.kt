@@ -45,6 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nutridisco.app.presentation.components.MascaraDataVisualTransformation
+import com.nutridisco.app.presentation.components.TopBarPilula
 import com.nutridisco.app.presentation.theme.StatusRed
 
 private val VerdeTopBar = Color(0xFF26732B)
@@ -188,40 +189,6 @@ private fun AvaliacaoRapidaConteudo(
             } else {
                 Text("Calcular", fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
-        }
-    }
-}
-
-@Composable
-private fun TopBarPilula(titulo: String, onVoltar: () -> Unit) {
-    Surface(
-        color = VerdeTopBar,
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onVoltar) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Voltar",
-                    tint = Color.White,
-                )
-            }
-            Text(
-                text = titulo,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(start = 8.dp),
-            )
         }
     }
 }

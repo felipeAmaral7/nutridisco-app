@@ -61,6 +61,7 @@ import com.nutridisco.app.data.local.entity.ComunidadeEntity
 import com.nutridisco.app.data.local.entity.PoloBaseEntity
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaUiState
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaViewModel
+import com.nutridisco.app.presentation.components.TopBarPilula
 import com.nutridisco.app.presentation.theme.StatusRed
 
 private val VerdeTopBar = Color(0xFF2E7D32)
@@ -230,36 +231,6 @@ private fun SalvarRegistroConteudo(
             } else {
                 Text("Salvar", fontSize = 18.sp, fontWeight = FontWeight.Medium)
             }
-        }
-    }
-}
-
-@Composable
-private fun TopBarPilula(titulo: String, onVoltar: () -> Unit) {
-    Surface(
-        color = VerdeTopBar,
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onVoltar) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.White)
-            }
-            Text(
-                text = titulo,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(start = 8.dp),
-            )
         }
     }
 }
