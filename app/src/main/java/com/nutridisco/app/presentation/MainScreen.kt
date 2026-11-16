@@ -28,7 +28,6 @@ import androidx.navigation.navArgument
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaScreen
 import com.nutridisco.app.presentation.avaliacaorapida.AvaliacaoRapidaViewModel
 import com.nutridisco.app.presentation.avaliacoessalvas.AvaliacoesSalvasViewModel
-import com.nutridisco.app.presentation.cadastro.CadastroCriancaScreen
 import com.nutridisco.app.presentation.cadastro.CadastroCriancaViewModel
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoScreen
 import com.nutridisco.app.presentation.configuracao.ConfiguracaoViewModel
@@ -174,19 +173,6 @@ fun MainScreen(
                         navController.navigate(
                             Screen.SalvarRegistro.createRoute(res.sexo, dataNascimento, res.peso, res.estatura)
                         )
-                    }
-                )
-            }
-
-            composable(Screen.CadastroCrianca.route) {
-                val viewModel: CadastroCriancaViewModel = hiltViewModel()
-                CadastroCriancaScreen(
-                    viewModel = viewModel,
-                    onVoltar = { navController.popBackStack() },
-                    onSalvoComSucesso = { criancaId ->
-                        navController.navigate(Screen.PerfilCrianca.createRoute(criancaId)) {
-                            popUpTo(Screen.AvaliacoesSalvas.route)
-                        }
                     }
                 )
             }

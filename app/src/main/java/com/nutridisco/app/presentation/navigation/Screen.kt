@@ -7,7 +7,6 @@ sealed class Screen(val route: String) {
     object Configuracao : Screen("configuracao")
     object AvaliacaoRapida : Screen("avaliacao_rapida")
     object Resultado : Screen("resultado")
-    object CadastroCrianca : Screen("cadastro_crianca")
     object SalvarRegistro : Screen("salvar_registro") {
         const val ROTA = "salvar_registro?sexo={sexo}&dataNascimento={dataNascimento}&peso={peso}&estatura={estatura}"
         fun createRoute(sexo: String, dataNascimento: Long, peso: Double, estatura: Double) =
