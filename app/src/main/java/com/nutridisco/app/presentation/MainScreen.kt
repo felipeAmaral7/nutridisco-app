@@ -1,5 +1,6 @@
 package com.nutridisco.app.presentation
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Calculate
@@ -17,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -201,15 +203,16 @@ fun MainScreen(
                     viewModel.preencherDadosDaAvaliacao(sexo, dataNascimento)
                 }
 
+                val context = LocalContext.current
                 SalvarRegistroScreen(
                     viewModel = viewModel,
                     avaliacao = avaliacao,
                     onVoltar = { navController.popBackStack() },
-                    onSalvoComSucesso = { criancaId ->
-                        // Remove o fluxo da avaliação da pilha: voltar do perfil leva ao Início,
-                        // e não de novo ao formulário (o que permitiria salvar em duplicidade).
-                        navController.navigate(Screen.PerfilCrianca.createRoute(criancaId)) {
-                            popUpTo(Screen.AvaliacoesSalvas.route)
+                    onSalvoComSucesso = { _ ->
+                        Toast.makeText(context, "Avaliação realizada com sucesso!", Toast.LENGTH_SHORT).show()
+                        navController.navigate(Screen.AvaliacoesSalvas.route) {
+                            popUpTo(Screen.AvaliacoesSalvas.route) { inclusive = false }
+                            launchSingleTop = true
                         }
                     }
                 )
@@ -244,10 +247,14 @@ fun MainScreen(
                 )
             ) {
                 val viewModel: EditarAvaliacaoViewModel = hiltViewModel()
+                val context = LocalContext.current
                 EditarAvaliacaoScreen(
                     viewModel = viewModel,
                     onVoltar = { navController.popBackStack() },
-                    onSalvoComSucesso = { navController.popBackStack() }
+                    onSalvoComSucesso = {
+                        Toast.makeText(context, "Avaliação atualizada com sucesso!", Toast.LENGTH_SHORT).show()
+                        navController.popBackStack()
+                    }
                 )
             }
 
@@ -258,10 +265,14 @@ fun MainScreen(
                 )
             ) {
                 val viewModel: EditarCriancaViewModel = hiltViewModel()
+                val context = LocalContext.current
                 EditarCriancaScreen(
                     viewModel = viewModel,
                     onVoltar = { navController.popBackStack() },
-                    onSalvoComSucesso = { navController.popBackStack() }
+                    onSalvoComSucesso = {
+                        Toast.makeText(context, "Cadastro atualizado com sucesso!", Toast.LENGTH_SHORT).show()
+                        navController.popBackStack()
+                    }
                 )
             }
 
@@ -272,10 +283,14 @@ fun MainScreen(
                 )
             ) {
                 val viewModel: NovaAvaliacaoViewModel = hiltViewModel()
+                val context = LocalContext.current
                 NovaAvaliacaoScreen(
                     viewModel = viewModel,
                     onVoltar = { navController.popBackStack() },
-                    onSalvo = { navController.popBackStack() }
+                    onSalvo = {
+                        Toast.makeText(context, "Avaliação realizada com sucesso!", Toast.LENGTH_SHORT).show()
+                        navController.popBackStack()
+                    }
                 )
             }
 
