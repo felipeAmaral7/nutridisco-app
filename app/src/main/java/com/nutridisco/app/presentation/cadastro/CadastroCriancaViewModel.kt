@@ -2,12 +2,10 @@ package com.nutridisco.app.presentation.cadastro
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.nutridisco.app.data.local.entity.AvaliacaoEntity
 import com.nutridisco.app.data.local.entity.ComunidadeEntity
-import com.nutridisco.app.data.local.entity.ConfiguracaoDispositivoEntity
 import com.nutridisco.app.data.local.entity.CriancaEntity
 import com.nutridisco.app.data.local.entity.PoloBaseEntity
-import com.nutridisco.app.domain.repository.AvaliacaoRepository
+import com.nutridisco.app.domain.model.DadosNovaAvaliacao
 import com.nutridisco.app.domain.repository.ConfiguracaoRepository
 import com.nutridisco.app.domain.repository.CriancaRepository
 import com.nutridisco.app.domain.repository.TerritorioRepository
@@ -51,7 +49,6 @@ class CadastroCriancaViewModel @Inject constructor(
     private val criancaRepository: CriancaRepository,
     private val territorioRepository: TerritorioRepository,
     private val configuracaoRepository: ConfiguracaoRepository,
-    private val avaliacaoRepository: AvaliacaoRepository,
     private val calcularClassificacaoUseCase: CalcularClassificacaoNutricionalUseCase
 ) : ViewModel() {
 
@@ -232,60 +229,31 @@ class CadastroCriancaViewModel @Inject constructor(
             )
         }
 
-        // 1. Obter ou criar comunidade on-the-fly
-        val comunidadeId = territorioRepository.obterOuCriarComunidade(
-            poloBaseId = poloBaseId,
-            nomeComunidade = state.comunidadeNome
-        )
+        val dadosAvaliacao = resultado?.let { res ->
+            DadosNovaAvaliacao(
+                peso = res.peso,
+                estatura = res.estatura,
+                idadeMesesMomento = idadeMeses,
+                classificacaoEstatura = res.classificacaoEstatura,
+                classificacaoPeso = res.classificacaoPeso,
+                observacoes = state.observacoes.trim().ifEmpty { null }
+            )
+        }
 
-        // 2. Salvar Criança
-        val criancaId = criancaRepository.salvarCrianca(
-            CriancaEntity(
-                comunidadeId = comunidadeId,
+        // Salva comunidade, criança, configuração e avaliação de forma 100% atômica em transação
+        val criancaId = criancaRepository.cadastrarCriancaComAvaliacao(
+            crianca = CriancaEntity(
+                comunidadeId = 0L,
                 nome = state.nome.trim(),
                 sexo = state.sexo,
                 dataNascimento = dataNascTimestamp,
                 nomeResponsavel = state.nomeResponsavel.trim(),
                 numeroCns = cns
-            )
+            ),
+            poloBaseId = poloBaseId,
+            nomeComunidade = state.comunidadeNome,
+            dadosAvaliacao = dadosAvaliacao
         )
-
-        // 3. Se houver avaliação pendente (originada da Avaliação Rápida), salvar agora
-        if (resultado != null) {
-            val configAtual = configuracaoRepository.getConfiguracao()
-            val config = if (configAtual == null) {
-                val novaConfig = ConfiguracaoDispositivoEntity(
-                    id = 1L,
-                    nomeProfissional = "Profissional Local",
-                    registroCoren = "Não informado",
-                    poloBaseIdPadrao = poloBaseId
-                )
-                configuracaoRepository.salvarConfiguracao(novaConfig)
-                novaConfig
-            } else if (configAtual.poloBaseIdPadrao == null) {
-                val configAtualizada = configAtual.copy(poloBaseIdPadrao = poloBaseId)
-                configuracaoRepository.salvarConfiguracao(configAtualizada)
-                configAtualizada
-            } else {
-                configAtual
-            }
-
-            avaliacaoRepository.salvarAvaliacao(
-                AvaliacaoEntity(
-                    criancaId = criancaId,
-                    comunidadeAtendimentoId = comunidadeId,
-                    dataAtendimento = System.currentTimeMillis(),
-                    idadeMesesMomento = idadeMeses,
-                    peso = resultado.peso,
-                    estatura = resultado.estatura,
-                    classificacaoEstatura = resultado.classificacaoEstatura,
-                    classificacaoPeso = resultado.classificacaoPeso,
-                    observacoes = state.observacoes.trim().ifEmpty { null },
-                    nomeProfissional = config.nomeProfissional,
-                    registroCoren = config.registroCoren
-                )
-            )
-        }
 
         _uiState.value = _uiState.value.copy(salvando = false)
         onSucesso(criancaId)

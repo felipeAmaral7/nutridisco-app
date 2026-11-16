@@ -8,6 +8,7 @@ import com.nutridisco.app.data.local.entity.PoloBaseEntity
 import com.nutridisco.app.data.local.entity.ReferenciaAntropometricaEntity
 import com.nutridisco.app.data.local.model.AvaliacaoDetalhada
 import com.nutridisco.app.data.local.model.CriancaComComunidade
+import com.nutridisco.app.domain.model.DadosNovaAvaliacao
 import com.nutridisco.app.domain.repository.AvaliacaoRepository
 import com.nutridisco.app.domain.repository.ConfiguracaoRepository
 import com.nutridisco.app.domain.repository.CriancaRepository
@@ -43,6 +44,7 @@ class CadastroCriancaViewModelTest {
     private val avaliacoesSalvas = mutableListOf<AvaliacaoEntity>()
     private val comunidadesCriadas = mutableListOf<Pair<Long, String>>()
     private val configuracoesSalvas = mutableListOf<ConfiguracaoDispositivoEntity>()
+    var simularErroAoSalvar = false
 
     private val configuracaoRepo = object : ConfiguracaoRepository {
         override fun getConfiguracaoFlow(): Flow<ConfiguracaoDispositivoEntity?> = flowOf(configuracao)
@@ -62,6 +64,55 @@ class CadastroCriancaViewModelTest {
         override suspend fun salvarCrianca(crianca: CriancaEntity): Long {
             criancasSalvas += crianca
             return criancasSalvas.size.toLong()
+        }
+        override suspend fun cadastrarCriancaComAvaliacao(
+            crianca: CriancaEntity,
+            poloBaseId: Long,
+            nomeComunidade: String,
+            dadosAvaliacao: DadosNovaAvaliacao?
+        ): Long {
+            if (simularErroAoSalvar) {
+                throw RuntimeException("Falha de IO simulada no banco de dados")
+            }
+            comunidadesCriadas += poloBaseId to nomeComunidade
+            val comunidadeId = 10L
+            val id = (criancasSalvas.size + 1).toLong()
+            criancasSalvas += crianca.copy(id = id, comunidadeId = comunidadeId)
+
+            val configAtual = configuracaoRepo.getConfiguracao()
+            val config = if (configAtual == null) {
+                val nova = ConfiguracaoDispositivoEntity(
+                    nomeProfissional = "Profissional Local",
+                    registroCoren = "Não informado",
+                    poloBaseIdPadrao = poloBaseId
+                )
+                configuracaoRepo.salvarConfiguracao(nova)
+                nova
+            } else if (configAtual.poloBaseIdPadrao == null) {
+                val atualizada = configAtual.copy(poloBaseIdPadrao = poloBaseId)
+                configuracaoRepo.salvarConfiguracao(atualizada)
+                atualizada
+            } else {
+                configAtual
+            }
+
+            if (dadosAvaliacao != null) {
+                avaliacoesSalvas += AvaliacaoEntity(
+                    id = (avaliacoesSalvas.size + 1).toLong(),
+                    criancaId = id,
+                    comunidadeAtendimentoId = comunidadeId,
+                    dataAtendimento = dadosAvaliacao.dataAtendimento,
+                    idadeMesesMomento = dadosAvaliacao.idadeMesesMomento,
+                    peso = dadosAvaliacao.peso,
+                    estatura = dadosAvaliacao.estatura,
+                    classificacaoEstatura = dadosAvaliacao.classificacaoEstatura,
+                    classificacaoPeso = dadosAvaliacao.classificacaoPeso,
+                    observacoes = dadosAvaliacao.observacoes,
+                    nomeProfissional = config.nomeProfissional,
+                    registroCoren = config.registroCoren
+                )
+            }
+            return id
         }
         override suspend fun atualizarCrianca(crianca: CriancaEntity) {}
         override suspend fun deletarCrianca(crianca: CriancaEntity) {}
@@ -114,7 +165,6 @@ class CadastroCriancaViewModelTest {
         criancaRepository = criancaRepo,
         territorioRepository = territorioRepo,
         configuracaoRepository = configuracaoRepo,
-        avaliacaoRepository = avaliacaoRepo,
         calcularClassificacaoUseCase = CalcularClassificacaoNutricionalUseCase(referenciaRepo)
     )
 
@@ -231,5 +281,21 @@ class CadastroCriancaViewModelTest {
         assertEquals("F", viewModel.uiState.value.sexo)
         assertEquals(dataOriginal, viewModel.uiState.value.dataNascimentoTexto)
         assertFalse(viewModel.uiState.value.poloBasePadraoAusente)
+    }
+
+    @Test
+    fun `quando o cadastro atomico falhar deve registrar mensagem de erro amigavel e redefinir estado salvando`() = runTest(testDispatcher) {
+        simularErroAoSalvar = true
+        val viewModel = criarViewModel()
+        advanceUntilIdle()
+        viewModel.preencherFormulario()
+
+        var sucessoChamado = false
+        viewModel.salvar(dadosAvaliacaoPendente = 10.5 to 80.0, onSucesso = { sucessoChamado = true })
+        advanceUntilIdle()
+
+        assertFalse(sucessoChamado)
+        assertFalse(viewModel.uiState.value.salvando)
+        assertEquals(CadastroCriancaViewModel.ERRO_AO_SALVAR, viewModel.uiState.value.erro)
     }
 }
